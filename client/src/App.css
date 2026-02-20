@@ -11,3 +11,141 @@ select, input, button { padding: 10px 12px; border-radius: 10px; border: 1px sol
 .composer input { flex: 1; }
 button { cursor: pointer; background: #111; color: white; border: 1px solid #111; }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.wrap {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 24px;
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.brand h1 {
+  margin: 0;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  opacity: 0.75;
+  max-width: 560px;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 16px;
+}
+
+.chat {
+  min-height: 520px;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 14px;
+  padding: 14px;
+  overflow: auto;
+  background: rgba(0,0,0,0.02);
+}
+
+.side {
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 14px;
+  padding: 14px;
+  height: fit-content;
+  background: rgba(0,0,0,0.02);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 10px 0 16px;
+}
+
+.tips p {
+  margin: 0;
+  opacity: 0.85;
+}
+
+.starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.startersLabel {
+  opacity: 0.7;
+  margin-right: 6px;
+}
+
+.starters button {
+  border-radius: 999px;
+  padding: 6px 10px;
+  border: 1px solid rgba(0,0,0,0.15);
+  background: white;
+  cursor: pointer;
+}
+
+.composer {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.composer input {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.15);
+}
+
+body {
+  margin: 0;
+  background: #f7f8fa;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+#root {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 12px 0 18px;
+}
+
+.startersLabel {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.starters button {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #111827;          /* <-- forces visible text */
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.starters button:hover {
+  background: #f3f4f6;
+}
