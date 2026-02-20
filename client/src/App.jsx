@@ -230,11 +230,7 @@ export default function App() {
   setLoading(true);
 
   try {
-    const res = await fetch("/api/tutor", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: trimmed, level, topic, mode }),
-    });
+    const res = await fetch("https://codequest-ai-tutor.onrender.com/api/chat") ;
 
     const rawText = await res.text();
     let data = null;
