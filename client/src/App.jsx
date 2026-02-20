@@ -2,6 +2,9 @@ import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
 
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://codequest-ai-tutor.onrender.com";
+
 export default function App() {
   const [level, setLevel] = useState("KS3");
   const [topic, setTopic] = useState("Python");
@@ -20,24 +23,22 @@ export default function App() {
     () => [
       { label: "Explain loops", text: "Explain loops in Python with an example." },
       { label: "Arrays", text: "What is an array? Explain for KS3 with an example." },
-      { label: "Python errors", text: "I got a Python error: TypeError. What does it mean and how do I fix it?" },
-      { label: "Quiz me", text: "Quiz me on variables (5 questions). Start easy then get harder." },
+      {
+        label: "Python errors",
+        text: "I got a Python error: TypeError. What does it mean and how do I fix it?",
+      },
+      {
+        label: "Quiz me",
+        text: "Quiz me on variables (5 questions). Start easy then get harder.",
+      },
     ],
     []
   );
 
-  function usePrompt(text) {
-    setInput(text);
-    // Optional: focus the input after clicking a prompt
-    setTimeout(() => {
-      const el = document.querySelector(".composer input");
-      el?.focus();
-    }, 0);
-  }
+  async function sendMessage(e, forcedText) {
+    if (e?.preventDefault) e.preventDefault();
 
-  async function sendMessage(e) {
-    e.preventDefault();
-    const text = input.trim();
+    const text = (forcedText ?? input).trim();
     if (!text || loading) return;
 
     setMessages((m) => [...m, { role: "user", content: text }]);
@@ -45,53 +46,62 @@ export default function App() {
     setLoading(true);
 
     try {
-  const res = await fetch("/api/tutor", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: text, level, topic, mode }),
-  });
+      // IMPORTANT: make sure your backend route is POST /api/tutor
+      // If your backend route is POST /api/chat instead, change `/api/tutor` to `/api/chat`.
+      const res = await fetch(`${API_BASE}/api/tutor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, level, topic, mode }),
+      });
 
-  const rawText = await res.text(); // read as text first
-  let data = null;
+      const rawText = await res.text(); // read as text first
+      let data = null;
 
-  try {
-    data = JSON.parse(rawText);
-  } catch {
-    // not JSON
-  }
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        // not JSON
+      }
 
-  if (!res.ok) {
-    setMessages((m) => [
-      ...m,
-      {
-        role: "assistant",
-        content:
-          `API error (${res.status}). ` +
-          (data?.error ? `\n${data.error}` : rawText || "No response body."),
-      },
-    ]);
-    return;
-  }
+      if (!res.ok) {
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            content:
+              `API error (${res.status}). ` +
+              (data?.error ? `\n${data.error}` : rawText || "No response body."),
+          },
+        ]);
+        return;
+      }
 
-  const reply =
-    data?.reply ??
-    data?.message ??
-    data?.content ??
-    data?.response ??
-    (typeof data === "string" ? data : null);
+      const reply =
+        data?.reply ??
+        data?.message ??
+        data?.content ??
+        data?.response ??
+        (typeof data === "string" ? data : null);
 
-  setMessages((m) => [
-    ...m,
-    { role: "assistant", content: reply || "I got a response but it had no reply field." },
-  ]);
-} catch (err) {
-  setMessages((m) => [
-    ...m,
-    { role: "assistant", content: "Error calling tutor API. Check backend is running and /api/tutor exists." },
-  ]);
-} finally {
-  setLoading(false);
-}
+      setMessages((m) => [
+        ...m,
+        {
+          role: "assistant",
+          content: reply || "I got a response but it had no reply field.",
+        },
+      ]);
+    } catch (err) {
+      setMessages((m) => [
+        ...m,
+        {
+          role: "assistant",
+          content:
+            "Error calling tutor API. Check backend is running, CORS is enabled, and the endpoint exists.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -131,23 +141,18 @@ export default function App() {
 
       {/* Starter prompts */}
       <div className="starters">
-  <span className="startersLabel">Try:</span>
-  {starterPrompts.map((p) => (
-    <button
-      key={p.label}
-      type="button"
-      onClick={() => {
-        setInput(p.text);
-        setTimeout(() => {
-          const fakeEvent = { preventDefault: () => {} };
-          sendMessage(fakeEvent);
-        }, 0);
-      }}
-    >
-      {p.label}
-    </button>
-  ))}
-</div>
+        <span className="startersLabel">Try:</span>
+        {starterPrompts.map((p) => (
+          <button
+            key={p.label}
+            type="button"
+            onClick={() => sendMessage(null, p.text)}
+            disabled={loading}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
 
       {/* Main 2-column layout */}
       <div className="layout">
@@ -155,9 +160,8 @@ export default function App() {
           {messages.map((m, i) => (
             <div key={i} className={`msg ${m.role}`}>
               <div className="bubble">
-  <ReactMarkdown>{m.content}</ReactMarkdown>
-</div>
-
+                <ReactMarkdown>{m.content}</ReactMarkdown>
+              </div>
             </div>
           ))}
 
@@ -221,49 +225,4 @@ export default function App() {
       </form>
     </div>
   );
-  async function sendText(text) {
-  const trimmed = text.trim();
-  if (!trimmed || loading) return;
-
-  setMessages((m) => [...m, { role: "user", content: trimmed }]);
-  setInput("");
-  setLoading(true);
-
-  try {
-    const res = await fetch("https://codequest-ai-tutor.onrender.com/api/chat") ;
-
-    const rawText = await res.text();
-    let data = null;
-    try { data = JSON.parse(rawText); } catch {}
-
-    if (!res.ok) {
-      setMessages((m) => [
-        ...m,
-        {
-          role: "assistant",
-          content:
-            `API error (${res.status}). ` +
-            (data?.error ? `\n${data.error}` : rawText || "No response body."),
-        },
-      ]);
-      return;
-    }
-
-    const reply =
-      data?.reply ?? data?.message ?? data?.content ?? data?.response ??
-      (typeof data === "string" ? data : null);
-
-    setMessages((m) => [
-      ...m,
-      { role: "assistant", content: reply || "I got a response but it had no reply field." },
-    ]);
-  } catch {
-    setMessages((m) => [
-      ...m,
-      { role: "assistant", content: "Error calling tutor API. Check backend is running and /api/tutor exists." },
-    ]);
-  } finally {
-    setLoading(false);
-  }
-}
 }
