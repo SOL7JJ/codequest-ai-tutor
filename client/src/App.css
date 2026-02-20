@@ -1,0 +1,13 @@
+.wrap { max-width: 900px; margin: 0 auto; padding: 24px; font-family: system-ui; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.controls { display: flex; gap: 8px; }
+select, input, button { padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; }
+.chat { margin-top: 18px; padding: 14px; border: 1px solid #eee; border-radius: 14px; min-height: 55vh; background: #fafafa; overflow: auto; }
+.msg { display: flex; margin: 10px 0; }
+.msg.user { justify-content: flex-end; }
+.bubble { max-width: 70%; padding: 10px 12px; border-radius: 14px; border: 1px solid #e6e6e6; background: white; white-space: pre-wrap; }
+.msg.user .bubble { background: #111; color: white; border-color: #111; }
+.composer { display: flex; gap: 10px; margin-top: 12px; }
+.composer input { flex: 1; }
+button { cursor: pointer; background: #111; color: white; border: 1px solid #111; }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
