@@ -90,7 +90,7 @@ export default function App() {
           content: reply || "I got a response but it had no reply field.",
         },
       ]);
-    } catch (err) {
+    } catch {
       setMessages((m) => [
         ...m,
         {

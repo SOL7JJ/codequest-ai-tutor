@@ -7,3 +7,6 @@
 # dependencies
 node_modules/
 **/node_modules/
+
+# visual regression artifacts
+client/visual-regression/
