@@ -19,6 +19,8 @@ const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 const APP_URL = process.env.APP_URL || "http://localhost:5173";
 const STRIPE_PRICE_ID_MONTHLY = process.env.STRIPE_PRICE_ID_MONTHLY || "";
+const STRIPE_PRICE_ID_PRO_MONTHLY = process.env.STRIPE_PRICE_ID_PRO_MONTHLY || STRIPE_PRICE_ID_MONTHLY;
+const STRIPE_PRICE_ID_PREMIUM_MONTHLY = process.env.STRIPE_PRICE_ID_PREMIUM_MONTHLY || "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
 const TEACHER_EMAILS = (process.env.TEACHER_EMAILS || "")
   .split(",")
@@ -34,6 +36,42 @@ app.use(cors());
 
 function stripePlanFromStatus(status) {
   return status === "active" || status === "trialing" ? "pro" : "free";
+}
+
+function isPaidPlan(plan) {
+  return plan === "pro" || plan === "premium";
+}
+
+function resolveStripePlanFromSubscription(subscription) {
+  const status = String(subscription?.status || "inactive");
+  if (!isSubscriptionActive(status)) return "free";
+
+  const priceIds = new Set(
+    (subscription?.items?.data || [])
+      .map((item) => item?.price?.id)
+      .filter(Boolean)
+      .map((id) => String(id))
+  );
+
+  if (STRIPE_PRICE_ID_PREMIUM_MONTHLY && priceIds.has(STRIPE_PRICE_ID_PREMIUM_MONTHLY)) {
+    return "premium";
+  }
+
+  if (STRIPE_PRICE_ID_PRO_MONTHLY && priceIds.has(STRIPE_PRICE_ID_PRO_MONTHLY)) {
+    return "pro";
+  }
+
+  if (STRIPE_PRICE_ID_MONTHLY && priceIds.has(STRIPE_PRICE_ID_MONTHLY)) {
+    return "pro";
+  }
+
+  return "pro";
+}
+
+function getCheckoutPlanConfig(requestedPlan) {
+  const plan = requestedPlan === "premium" ? "premium" : "pro";
+  const priceId = plan === "premium" ? STRIPE_PRICE_ID_PREMIUM_MONTHLY : STRIPE_PRICE_ID_PRO_MONTHLY;
+  return { plan, priceId };
 }
 
 async function handleStripeWebhook(req, res) {
@@ -80,7 +118,7 @@ async function handleStripeWebhook(req, res) {
           [
             String(subscription.id),
             String(subscription.status || "inactive"),
-            stripePlanFromStatus(String(subscription.status || "inactive")),
+            resolveStripePlanFromSubscription(subscription),
             Number(subscription.current_period_end || 0),
             String(customerId),
           ]
@@ -108,7 +146,7 @@ async function handleStripeWebhook(req, res) {
           [
             String(subscription.id || ""),
             String(subscription.status || "inactive"),
-            stripePlanFromStatus(String(subscription.status || "inactive")),
+            resolveStripePlanFromSubscription(subscription),
             Number(subscription.current_period_end || 0),
             String(customerId),
           ]
@@ -207,8 +245,13 @@ function isSubscriptionActive(status) {
 
 function getBillingConfigError() {
   if (!stripe) return "STRIPE_SECRET_KEY is missing or invalid";
-  if (!STRIPE_PRICE_ID_MONTHLY) return "STRIPE_PRICE_ID_MONTHLY is missing";
-  if (!STRIPE_PRICE_ID_MONTHLY.startsWith("price_")) {
+  if (STRIPE_PRICE_ID_PRO_MONTHLY && !STRIPE_PRICE_ID_PRO_MONTHLY.startsWith("price_")) {
+    return "STRIPE_PRICE_ID_PRO_MONTHLY must start with price_";
+  }
+  if (STRIPE_PRICE_ID_PREMIUM_MONTHLY && !STRIPE_PRICE_ID_PREMIUM_MONTHLY.startsWith("price_")) {
+    return "STRIPE_PRICE_ID_PREMIUM_MONTHLY must start with price_";
+  }
+  if (STRIPE_PRICE_ID_MONTHLY && !STRIPE_PRICE_ID_MONTHLY.startsWith("price_")) {
     return "STRIPE_PRICE_ID_MONTHLY must start with price_";
   }
   if (!APP_URL?.startsWith("http://") && !APP_URL?.startsWith("https://")) {
@@ -307,14 +350,14 @@ async function getTutorAccessContext(userId, mode, isStreaming) {
     return { allowed: false, status: 401, error: "User not found" };
   }
 
-  const paid = user.plan === "pro" || isSubscriptionActive(user.subscription_status);
+  const paid = isPaidPlan(user.plan) || isSubscriptionActive(user.subscription_status);
   const turnsToday = await getTodayTurnCount(userId);
   const remaining = Math.max(FREE_TIER_DAILY_TURNS - turnsToday, 0);
 
   if (paid) {
     return {
       allowed: true,
-      plan: "pro",
+      plan: user.plan && user.plan !== "free" ? user.plan : "pro",
       user,
       usage: {
         dailyLimit: null,
@@ -635,7 +678,7 @@ app.get("/api/billing/status", requireAuth, async (req, res) => {
 
     const dailyUsed = await getTodayTurnCount(req.user.sub);
     const dailyRemaining = Math.max(FREE_TIER_DAILY_TURNS - dailyUsed, 0);
-    const paid = user.plan === "pro" || isSubscriptionActive(user.subscription_status);
+    const paid = isPaidPlan(user.plan) || isSubscriptionActive(user.subscription_status);
 
     return res.status(200).json({
       billing: {
@@ -1177,11 +1220,22 @@ app.post("/api/billing/create-checkout-session", requireAuth, async (req, res) =
   }
 
   try {
+    const requestedPlan = String(req.body?.plan || "pro").toLowerCase();
+    if (!["pro", "premium"].includes(requestedPlan)) {
+      return res.status(400).json({ error: "Invalid plan. Use 'pro' or 'premium'." });
+    }
+
+    const { plan: checkoutPlan, priceId } = getCheckoutPlanConfig(requestedPlan);
+    if (!priceId) {
+      const varName = checkoutPlan === "premium" ? "STRIPE_PRICE_ID_PREMIUM_MONTHLY" : "STRIPE_PRICE_ID_PRO_MONTHLY";
+      return res.status(500).json({ error: `${varName} is missing` });
+    }
+
     const user = await getUserById(req.user.sub);
     if (!user) return res.status(401).json({ error: "User not found" });
 
-    if (user.plan === "pro" || isSubscriptionActive(user.subscription_status)) {
-      return res.status(400).json({ error: "Subscription already active" });
+    if (isPaidPlan(user.plan) || isSubscriptionActive(user.subscription_status)) {
+      return res.status(400).json({ error: "Subscription already active. Use billing portal to change plans." });
     }
 
     let customerId = user.stripe_customer_id;
@@ -1204,12 +1258,13 @@ app.post("/api/billing/create-checkout-session", requireAuth, async (req, res) =
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
-      line_items: [{ price: STRIPE_PRICE_ID_MONTHLY, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${APP_URL}/billing/success`,
       cancel_url: `${APP_URL}/billing/cancel`,
       allow_promotion_codes: true,
       metadata: {
         app_user_id: String(user.id),
+        requested_plan: checkoutPlan,
       },
     });
 
@@ -1431,10 +1486,12 @@ async function ensureSchema() {
   await pool.query(`
     UPDATE users
     SET plan = CASE
+      WHEN subscription_status IN ('active', 'trialing') AND plan = 'premium' THEN 'premium'
       WHEN subscription_status IN ('active', 'trialing') THEN 'pro'
       ELSE 'free'
     END
     WHERE plan IS DISTINCT FROM CASE
+      WHEN subscription_status IN ('active', 'trialing') AND plan = 'premium' THEN 'premium'
       WHEN subscription_status IN ('active', 'trialing') THEN 'pro'
       ELSE 'free'
     END
@@ -1573,6 +1630,14 @@ async function start() {
 
   if (!STRIPE_PRICE_ID_MONTHLY) {
     console.warn("STRIPE_PRICE_ID_MONTHLY is not set. Checkout session creation will fail.");
+  }
+
+  if (!STRIPE_PRICE_ID_PRO_MONTHLY) {
+    console.warn("STRIPE_PRICE_ID_PRO_MONTHLY is not set (or STRIPE_PRICE_ID_MONTHLY fallback missing).");
+  }
+
+  if (!STRIPE_PRICE_ID_PREMIUM_MONTHLY) {
+    console.warn("STRIPE_PRICE_ID_PREMIUM_MONTHLY is not set. Premium checkout will be unavailable.");
   }
 
   if (!STRIPE_WEBHOOK_SECRET) {

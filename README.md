@@ -33,6 +33,9 @@ JWT_SECRET=your_long_random_secret
 APP_URL=http://localhost:5173
 STRIPE_SECRET_KEY=your_stripe_secret_key
 STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
+STRIPE_PRICE_ID_PRO_MONTHLY=price_xxx
+STRIPE_PRICE_ID_PREMIUM_MONTHLY=price_xxx
+# Optional legacy fallback:
 STRIPE_PRICE_ID_MONTHLY=price_xxx
 ```
 
@@ -115,12 +118,15 @@ The summary dashboard highlights this-week activity count, top topics, streak da
 
 Tutor access tiers:
 - Free plan: `Explain` + `Hint` with daily turn limits
-- Pro plan (`active` or `trialing`): unlimited turns + `Quiz`, `Mark`, and streaming responses
+- Pro plan (£4.99): unlimited turns + `Quiz`, `Mark`, streaming, saved history
+- Premium plan (£9.99): all Pro features + personalized learning path and parent progress reports UI
 - Free-user daily tutor requests are tracked in `usage_logs` (default limit: `5/day`).
 
 ### Stripe setup
-1. Create a monthly recurring product/price in Stripe Dashboard.
-2. Copy the Stripe **Price ID** into `STRIPE_PRICE_ID_MONTHLY`.
+1. Create two monthly recurring prices in Stripe Dashboard (Pro + Premium).
+2. Copy Stripe **Price IDs** into:
+   - `STRIPE_PRICE_ID_PRO_MONTHLY`
+   - `STRIPE_PRICE_ID_PREMIUM_MONTHLY`
 3. In Stripe Webhooks, add endpoint:
    - `https://<your-backend-domain>/api/billing/webhook`
 4. Subscribe to events:
@@ -136,13 +142,14 @@ Tutor access tiers:
 ### Stripe env vars required
 - `APP_URL` (full frontend URL, e.g. `https://codequest-ai-tutor.vercel.app`)
 - `STRIPE_SECRET_KEY` (`sk_test_...` or `sk_live_...`)
-- `STRIPE_PRICE_ID_MONTHLY` (`price_...`)
+- `STRIPE_PRICE_ID_PRO_MONTHLY` (`price_...`)
+- `STRIPE_PRICE_ID_PREMIUM_MONTHLY` (`price_...`)
 - `STRIPE_WEBHOOK_SECRET` (`whsec_...`)
 
 ### Local Stripe test steps
 1. Start backend (`cd server && npm run dev`) and frontend (`cd client && npm run dev`).
 2. Ensure local env vars are set (`APP_URL=http://localhost:5173`, Stripe keys/price/whsec).
-3. Click **Upgrade to Pro** in the app and complete Checkout.
+3. Open `/pricing`, choose **Pro** or **Premium**, and complete Checkout.
 4. Stripe should redirect to `/billing/success` and app should refresh billing state.
 5. Confirm `GET /api/billing/status` returns `plan: "pro"`.
 6. Cancel subscription in Stripe test mode and confirm webhook updates plan to `free`.

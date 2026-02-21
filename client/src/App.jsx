@@ -142,7 +142,8 @@ export default function App() {
     setCurrentPath(path);
   }, []);
 
-  const isProPlan = isSubscriptionActive(billingStatus) || billingPlan === "pro";
+  const isPaidPlan = isSubscriptionActive(billingStatus) || billingPlan === "pro" || billingPlan === "premium";
+  const isPremiumPlan = billingPlan === "premium";
 
   const fetchBillingStatus = useCallback(async () => {
     if (!user) return;
@@ -325,11 +326,14 @@ export default function App() {
     setCodeEvalResult(null);
   }
 
-  async function handleStartSubscription() {
+  async function handleStartSubscription(targetPlan = "pro") {
     setBillingActionLoading(true);
     setBillingError("");
     try {
-      const { res, data, rawText } = await fetchJson("/api/billing/create-checkout-session", { method: "POST" });
+      const { res, data, rawText } = await fetchJson("/api/billing/create-checkout-session", {
+        method: "POST",
+        body: JSON.stringify({ plan: targetPlan }),
+      });
       if (!res.ok) throw new Error(data?.error || rawText || `Failed to create checkout (${res.status})`);
       if (!data?.url) throw new Error("No checkout URL returned from server");
       window.location.href = data.url;
@@ -400,7 +404,7 @@ export default function App() {
     };
 
     try {
-      if (!isProPlan) {
+      if (!isPaidPlan) {
         await nonStreamCall();
       } else {
         const token = getToken();
@@ -769,7 +773,7 @@ export default function App() {
 
               <article className="pricingCard pricingCardPro">
                 <h3>Pro</h3>
-                <p className="pricingPrice">Monthly plan</p>
+                <p className="pricingPrice">£4.99 / month</p>
                 <ul>
                   <li>Unlimited tutor sessions</li>
                   <li>Exam-style marking</li>
@@ -782,15 +786,43 @@ export default function App() {
                   onClick={() => {
                     if (!user) {
                       setAuthMode("signup");
-                      setCheckoutNotice("Create your account, then click Upgrade to Pro.");
+                      setCheckoutNotice("Create your account, then choose Pro or Premium.");
                       goToPath("/");
                       return;
                     }
-                    handleStartSubscription();
+                    handleStartSubscription("pro");
                   }}
                   disabled={billingActionLoading}
                 >
-                  {billingActionLoading ? "Redirecting..." : "Upgrade to Pro"}
+                  {billingActionLoading ? "Redirecting..." : "Choose Pro"}
+                </button>
+              </article>
+
+              <article className="pricingCard pricingCardPro">
+                <h3>Premium</h3>
+                <p className="pricingPrice">£9.99 / month</p>
+                <ul>
+                  <li>Personalized learning path</li>
+                  <li>Progress tracking + insights</li>
+                  <li>Advanced AI explanations</li>
+                  <li>Priority response</li>
+                  <li>Parent progress reports</li>
+                </ul>
+                <button
+                  type="button"
+                  className="sendBtn"
+                  onClick={() => {
+                    if (!user) {
+                      setAuthMode("signup");
+                      setCheckoutNotice("Create your account, then choose Pro or Premium.");
+                      goToPath("/");
+                      return;
+                    }
+                    handleStartSubscription("premium");
+                  }}
+                  disabled={billingActionLoading}
+                >
+                  {billingActionLoading ? "Redirecting..." : "Choose Premium"}
                 </button>
               </article>
             </div>
@@ -895,17 +927,17 @@ export default function App() {
           <h1>CodeQuest AI Tutor</h1>
           <p className="subtitle">Learn Computer Science with an AI tutor that explains step-by-step.</p>
           <div className="badges">
-            <span className="badge">{isProPlan ? "Pro" : "Free"}</span>
+            <span className="badge">{isPremiumPlan ? "Premium" : isPaidPlan ? "Pro" : "Free"}</span>
             <span className="badge">Role: {user.role || "student"}</span>
-            {isProPlan ? (
+            {isPaidPlan ? (
               <span className="badge planBadgeInline">Plan active • Renews {renewalLabel}</span>
             ) : (
               <span className="badge freeBadgeInline">{freeTurnsLabel || "Free tier access enabled"}</span>
             )}
             <span className="badge">Session turns: {Math.max(messages.length - 1, 0)}</span>
             <span className="badge">{user.email}</span>
-            <button type="button" className="badge signOutBtn" onClick={isProPlan ? handleManageBilling : handleStartSubscription} disabled={billingActionLoading}>
-              {isProPlan ? "Billing" : billingActionLoading ? "Opening..." : "Upgrade"}
+            <button type="button" className="badge signOutBtn" onClick={isPaidPlan ? handleManageBilling : () => goToPath("/pricing")} disabled={billingActionLoading}>
+              {isPaidPlan ? "Billing" : billingActionLoading ? "Opening..." : "Upgrade"}
             </button>
             <button type="button" className="badge signOutBtn" onClick={() => goToPath("/pricing")}>
               Pricing
@@ -931,22 +963,22 @@ export default function App() {
           <select value={mode} onChange={(e) => setMode(e.target.value)}>
             <option>Explain</option>
             <option>Hint</option>
-            <option disabled={!isProPlan}>Quiz{isProPlan ? "" : " (Pro)"}</option>
-            <option disabled={!isProPlan}>Mark{isProPlan ? "" : " (Pro)"}</option>
+            <option disabled={!isPaidPlan}>Quiz{isPaidPlan ? "" : " (Pro)"}</option>
+            <option disabled={!isPaidPlan}>Mark{isPaidPlan ? "" : " (Pro)"}</option>
           </select>
         </div>
       </header>
 
       {checkoutNotice && <p className="paywallNotice inlineNotice">{checkoutNotice}</p>}
-      {!isProPlan && (
+      {!isPaidPlan && (
         <section className="freePlanBanner">
           <div>
             <h3>Free plan</h3>
-            <p>Use Explain + Hint with daily limits. Upgrade for Quiz, Mark, and streaming.</p>
+            <p>Use Explain + Hint with daily limits. Upgrade for unlimited tutoring and advanced features.</p>
             <p className="freePlanMeta">Usage today: {billingDailyUsed}{billingDailyLimit == null ? "" : ` / ${billingDailyLimit}`}</p>
           </div>
-          <button type="button" className="sendBtn" onClick={handleStartSubscription} disabled={billingActionLoading}>
-            {billingActionLoading ? "Redirecting..." : "Upgrade to Pro"}
+          <button type="button" className="sendBtn" onClick={() => goToPath("/pricing")} disabled={billingActionLoading}>
+            {billingActionLoading ? "Redirecting..." : "View plans"}
           </button>
         </section>
       )}
@@ -1215,8 +1247,8 @@ export default function App() {
               <div className="actions">
                 <button type="button" onClick={() => setMode("Explain")} className={`modeBtn ${mode === "Explain" ? "active" : ""}`}>Explain</button>
                 <button type="button" onClick={() => setMode("Hint")} className={`modeBtn ${mode === "Hint" ? "active" : ""}`}>Hint</button>
-                <button type="button" onClick={() => setMode("Quiz")} className={`modeBtn ${mode === "Quiz" ? "active" : ""}`} disabled={!isProPlan}>{isProPlan ? "Quiz" : "Quiz (Pro)"}</button>
-                <button type="button" onClick={() => setMode("Mark")} className={`modeBtn ${mode === "Mark" ? "active" : ""}`} disabled={!isProPlan}>{isProPlan ? "Mark" : "Mark (Pro)"}</button>
+                <button type="button" onClick={() => setMode("Quiz")} className={`modeBtn ${mode === "Quiz" ? "active" : ""}`} disabled={!isPaidPlan}>{isPaidPlan ? "Quiz" : "Quiz (Pro)"}</button>
+                <button type="button" onClick={() => setMode("Mark")} className={`modeBtn ${mode === "Mark" ? "active" : ""}`} disabled={!isPaidPlan}>{isPaidPlan ? "Mark" : "Mark (Pro)"}</button>
               </div>
 
               <div className="tips">
