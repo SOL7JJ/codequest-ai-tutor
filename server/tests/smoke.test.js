@@ -1,9 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import jwt from "jsonwebtoken";
 
 const port = 3300 + Math.floor(Math.random() * 200);
 const baseUrl = `http://127.0.0.1:${port}`;
+const jwtSecret = "test-jwt-secret";
+const token = jwt.sign({ sub: 123, email: "test@example.com" }, jwtSecret, { expiresIn: "1h" });
 let child;
 
 function waitForServerReady(proc) {
@@ -41,6 +44,7 @@ test.before(async () => {
       PORT: String(port),
       OPENAI_API_KEY: "",
       DATABASE_URL: "",
+      JWT_SECRET: jwtSecret,
       REQUEST_TIMEOUT_MS: "1000",
       RATE_LIMIT_MAX: "100",
     },
@@ -64,10 +68,25 @@ test("GET /health returns ok", async () => {
   assert.equal(body.ok, true);
 });
 
-test("POST /api/tutor rejects missing message", async () => {
+test("POST /api/tutor requires auth", async () => {
   const response = await fetch(`${baseUrl}/api/tutor`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: "Explain loops" }),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.match(body.error, /Unauthorized/);
+});
+
+test("POST /api/tutor rejects missing message for authenticated user", async () => {
+  const response = await fetch(`${baseUrl}/api/tutor`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({ level: "KS3", topic: "Python", mode: "Explain" }),
   });
   const body = await response.json();
@@ -79,7 +98,10 @@ test("POST /api/tutor rejects missing message", async () => {
 test("POST /api/tutor returns clear error when OPENAI_API_KEY is missing", async () => {
   const response = await fetch(`${baseUrl}/api/tutor`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({ message: "Explain loops", level: "KS3", topic: "Python", mode: "Explain" }),
   });
   const body = await response.json();

@@ -28,6 +28,8 @@ cp .env.example .env
 Update `/Users/jamesjonathantossou-ayayi/Desktop/codequest-ai-tutor/server/.env`:
 ```bash
 OPENAI_API_KEY=your_key_here
+DATABASE_URL=your_postgres_connection_string
+JWT_SECRET=your_long_random_secret
 ```
 
 Start backend:
@@ -51,6 +53,21 @@ Start frontend:
 ```bash
 npm run dev
 ```
+
+## Authentication (Custom Backend)
+This project uses backend auth with:
+- Password hashing via `bcryptjs`
+- Session tokens via JWT (`jsonwebtoken`)
+- User records stored in PostgreSQL (`users` table auto-created on startup)
+
+Auth endpoints:
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+
+Protected tutor endpoints:
+- `POST /api/tutor`
+- `POST /api/tutor/stream`
 
 ## Production API URL
 Set `VITE_API_URL` in your deployed frontend environment to your backend URL, for example:

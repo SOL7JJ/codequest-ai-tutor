@@ -1,11 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
 
 const API_BASE =
   import.meta.env.VITE_API_URL || "https://codequest-ai-tutor.onrender.com";
 
+const TOKEN_KEY = "codequest_auth_token";
+
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [authMode, setAuthMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+
   const [level, setLevel] = useState("KS3");
   const [topic, setTopic] = useState("Python");
   const [mode, setMode] = useState("Explain");
@@ -36,11 +46,94 @@ export default function App() {
     []
   );
 
+  const getToken = useCallback(() => localStorage.getItem(TOKEN_KEY) || "", []);
+
+  const fetchJson = useCallback(async (path, options = {}) => {
+    const token = getToken();
+    const headers = {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+    });
+
+    const rawText = await res.text();
+    let data = null;
+
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      // noop
+    }
+
+    return { res, data, rawText };
+  }, [getToken]);
+
+  async function handleEmailAuth(e) {
+    if (e?.preventDefault) e.preventDefault();
+
+    setAuthLoading(true);
+    setAuthError("");
+
+    try {
+      const endpoint = authMode === "signup" ? "/api/auth/register" : "/api/auth/login";
+      const { res, data, rawText } = await fetchJson(endpoint, {
+        method: "POST",
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+
+      if (!res.ok) {
+        throw new Error(data?.error || rawText || `Auth failed (${res.status})`);
+      }
+
+      if (!data?.token || !data?.user) {
+        throw new Error("Invalid auth response from server");
+      }
+
+      localStorage.setItem(TOKEN_KEY, data.token);
+      setUser(data.user);
+      setPassword("");
+      setAuthError("");
+    } catch (err) {
+      setAuthError(err?.message || "Authentication failed.");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleSignOut() {
+    localStorage.removeItem(TOKEN_KEY);
+    setUser(null);
+    setMessages([
+      {
+        role: "assistant",
+        content:
+          "👋 Hi! I'm your AI Tutor.\n\nI can:\n• Explain topics step-by-step\n• Help you debug code\n• Give hints (not just answers)\n• Create practice questions\n\nWhat are you working on today?",
+      },
+    ]);
+  }
+
   async function sendMessage(e, forcedText) {
     if (e?.preventDefault) e.preventDefault();
 
     const text = (forcedText ?? input).trim();
     if (!text || loading) return;
+
+    if (!getToken()) {
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", content: "Please log in again to continue." },
+      ]);
+      setUser(null);
+      return;
+    }
 
     setMessages((m) => [...m, { role: "user", content: text }, { role: "assistant", content: "" }]);
     setInput("");
@@ -57,18 +150,15 @@ export default function App() {
     };
 
     const fallbackToNonStream = async () => {
-      const res = await fetch(`${API_BASE}/api/tutor`, {
+      const { res, data, rawText } = await fetchJson("/api/tutor", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, level, topic, mode }),
       });
 
-      const rawText = await res.text();
-      let data = null;
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        // not JSON
+      if (res.status === 401) {
+        localStorage.removeItem(TOKEN_KEY);
+        setUser(null);
+        throw new Error("Session expired. Please log in again.");
       }
 
       if (!res.ok) {
@@ -86,11 +176,21 @@ export default function App() {
     };
 
     try {
+      const token = getToken();
       const res = await fetch(`${API_BASE}/api/tutor/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ message: text, level, topic, mode }),
       });
+
+      if (res.status === 401) {
+        localStorage.removeItem(TOKEN_KEY);
+        setUser(null);
+        throw new Error("Session expired. Please log in again.");
+      }
 
       if (!res.ok) {
         await fallbackToNonStream();
@@ -148,12 +248,13 @@ export default function App() {
     } catch {
       try {
         await fallbackToNonStream();
-      } catch {
+      } catch (err) {
         setMessages((m) => [
           ...m.slice(0, -1),
           {
             role: "assistant",
             content:
+              err?.message ||
               "Error calling tutor API. Check backend is running, CORS is enabled, and the endpoint exists.",
           },
         ]);
@@ -164,11 +265,106 @@ export default function App() {
   }
 
   useEffect(() => {
+    let mounted = true;
+
+    async function restoreSession() {
+      const token = getToken();
+      if (!token) {
+        if (mounted) setAuthChecking(false);
+        return;
+      }
+
+      try {
+        const { res, data } = await fetchJson("/api/auth/me", { method: "GET" });
+        if (!res.ok || !data?.user) {
+          localStorage.removeItem(TOKEN_KEY);
+          if (mounted) setUser(null);
+        } else if (mounted) {
+          setUser(data.user);
+        }
+      } catch {
+        localStorage.removeItem(TOKEN_KEY);
+        if (mounted) setUser(null);
+      } finally {
+        if (mounted) setAuthChecking(false);
+      }
+    }
+
+    restoreSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, [fetchJson, getToken]);
+
+  useEffect(() => {
     if (!chatRef.current) return;
     chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages, loading]);
 
   const isFreshSession = messages.length === 1 && messages[0]?.role === "assistant";
+
+  if (authChecking) {
+    return (
+      <div className="authShell">
+        <section className="authCard">
+          <h1>CodeQuest AI Tutor</h1>
+          <p>Checking session...</p>
+        </section>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="authShell">
+        <section className="authCard">
+          <h1>CodeQuest AI Tutor</h1>
+          <p>Sign in to continue your personalized learning session.</p>
+
+          <div className="authModeRow">
+            <button
+              type="button"
+              className={`modeBtn ${authMode === "login" ? "active" : ""}`}
+              onClick={() => setAuthMode("login")}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              className={`modeBtn ${authMode === "signup" ? "active" : ""}`}
+              onClick={() => setAuthMode("signup")}
+            >
+              Sign Up
+            </button>
+          </div>
+
+          <form className="authForm" onSubmit={handleEmailAuth}>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password (min 6 chars)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+            <button type="submit" className="sendBtn" disabled={authLoading}>
+              {authLoading ? "Please wait..." : authMode === "signup" ? "Create account" : "Login"}
+            </button>
+          </form>
+
+          {authError && <p className="authError">{authError}</p>}
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="wrap">
@@ -181,6 +377,10 @@ export default function App() {
           <div className="badges">
             <span className="badge">Adaptive tutor</span>
             <span className="badge">Session turns: {Math.max(messages.length - 1, 0)}</span>
+            <span className="badge">{user.email || "Signed in user"}</span>
+            <button type="button" className="badge signOutBtn" onClick={handleSignOut}>
+              Log out
+            </button>
           </div>
         </div>
 
@@ -209,7 +409,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Starter prompts */}
       <div className="starters">
         <span className="startersLabel">Try:</span>
         {starterPrompts.map((p) => (
@@ -224,7 +423,6 @@ export default function App() {
         ))}
       </div>
 
-      {/* Main 2-column layout */}
       <div className="layout">
         <main className="chat" ref={chatRef}>
           {isFreshSession && (
@@ -258,7 +456,6 @@ export default function App() {
           )}
         </main>
 
-        {/* Right-side panel */}
         <aside className="side">
           <h3>Quick actions</h3>
 
@@ -314,7 +511,6 @@ export default function App() {
         </aside>
       </div>
 
-      {/* Composer */}
       <form className="composer" onSubmit={sendMessage}>
         <input
           value={input}

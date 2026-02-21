@@ -80,6 +80,10 @@ body {
   font-weight: 600;
 }
 
+.signOutBtn {
+  cursor: pointer;
+}
+
 .controls {
   display: flex;
   flex-wrap: wrap;
@@ -418,6 +422,84 @@ button:disabled {
 
 .sendBtn:hover {
   box-shadow: 0 14px 24px rgba(31, 87, 159, 0.34);
+}
+
+.authShell {
+  min-height: 100vh;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.authCard {
+  width: min(460px, 100%);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+.authCard h1 {
+  margin: 0;
+  font-family: "Sora", sans-serif;
+  font-size: 1.7rem;
+}
+
+.authCard p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.authHint {
+  margin-top: 12px;
+  background: #fff8e8;
+  border: 1px solid #f3deb0;
+  color: #6f5408;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 0.92rem;
+}
+
+.authModeRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.authForm {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.authForm input {
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  min-height: 42px;
+  padding: 10px 12px;
+}
+
+.googleBtn {
+  margin-top: 10px;
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #c4d4e8;
+  background: #fff;
+  color: #1f3a63;
+  font-weight: 700;
+}
+
+.authError {
+  margin-top: 10px;
+  color: #9b1c1c;
+  background: #ffefef;
+  border: 1px solid #f7c5c5;
+  border-radius: 10px;
+  padding: 9px;
+  font-size: 0.92rem;
 }
 
 @keyframes reveal {
