@@ -2,16 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
 
-const API_BASE =
-  import.meta.env.VITE_API_URL || "https://codequest-ai-tutor.onrender.com";
-
+const API_BASE = import.meta.env.VITE_API_URL || "https://codequest-ai-tutor.onrender.com";
 const TOKEN_KEY = "codequest_auth_token";
 const LAST_EMAIL_KEY = "codequest_last_email";
 const CHECKOUT_NOTICE_KEY = "codequest_checkout_notice";
+
 const DEFAULT_WELCOME_MESSAGE = {
   role: "assistant",
   content:
-    "👋 Hi! I'm your AI Tutor.\n\nI can:\n• Explain topics step-by-step\n• Help you debug code\n• Give hints (not just answers)\n• Create practice questions\n\nWhat are you working on today?",
+    "Hi! I am your AI Tutor. Ask coding questions, paste code for feedback, or track your progress in dashboards.",
 };
 
 function isSubscriptionActive(status) {
@@ -22,26 +21,30 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [authMode, setAuthMode] = useState("login");
+  const [signupRole, setSignupRole] = useState("student");
   const [email, setEmail] = useState(() => localStorage.getItem(LAST_EMAIL_KEY) || "");
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [demoQuestion, setDemoQuestion] = useState("How do Python loops work?");
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [demoReply, setDemoReply] = useState("");
+  const [demoError, setDemoError] = useState("");
 
   const [billingStatus, setBillingStatus] = useState("inactive");
   const [billingPlan, setBillingPlan] = useState("free");
-  const [billingLoading, setBillingLoading] = useState(false);
   const [billingPeriodEnd, setBillingPeriodEnd] = useState(null);
   const [billingDailyLimit, setBillingDailyLimit] = useState(null);
   const [billingDailyUsed, setBillingDailyUsed] = useState(0);
   const [billingDailyRemaining, setBillingDailyRemaining] = useState(null);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const [billingLoading, setBillingLoading] = useState(false);
   const [billingActionLoading, setBillingActionLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
   const [checkoutNotice, setCheckoutNotice] = useState("");
+
   const [viewMode, setViewMode] = useState("tutor");
-  const [progressLoading, setProgressLoading] = useState(false);
-  const [progressError, setProgressError] = useState("");
-  const [progressData, setProgressData] = useState(null);
+  const [studentDashTab, setStudentDashTab] = useState("overview");
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const [level, setLevel] = useState("KS3");
   const [topic, setTopic] = useState("Python");
@@ -51,70 +54,102 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const chatRef = useRef(null);
 
+  const [progressLoading, setProgressLoading] = useState(false);
+  const [progressError, setProgressError] = useState("");
+  const [progressData, setProgressData] = useState(null);
+
+  const [lessons, setLessons] = useState([]);
+  const [lessonTitle, setLessonTitle] = useState("");
+  const [lessonTopic, setLessonTopic] = useState("");
+  const [lessonSaving, setLessonSaving] = useState(false);
+
+  const [quizTopic, setQuizTopic] = useState("Python");
+  const [quizScore, setQuizScore] = useState("8");
+  const [quizMaxScore, setQuizMaxScore] = useState("10");
+  const [quizSaving, setQuizSaving] = useState(false);
+
+  const [tasks, setTasks] = useState([]);
+  const [taskSavingId, setTaskSavingId] = useState(null);
+
+  const [codeInput, setCodeInput] = useState("");
+  const [codeLanguage, setCodeLanguage] = useState("python");
+  const [codeEvalLoading, setCodeEvalLoading] = useState(false);
+  const [codeEvalError, setCodeEvalError] = useState("");
+  const [codeEvalResult, setCodeEvalResult] = useState(null);
+
+  const [teacherTopic, setTeacherTopic] = useState("Python");
+  const [teacherLevel, setTeacherLevel] = useState("KS3");
+  const [teacherQuestionCount, setTeacherQuestionCount] = useState("5");
+  const [teacherQuizTitle, setTeacherQuizTitle] = useState("");
+  const [teacherQuizLoading, setTeacherQuizLoading] = useState(false);
+  const [teacherQuizResult, setTeacherQuizResult] = useState(null);
+
+  const [assignEmail, setAssignEmail] = useState("");
+  const [assignTitle, setAssignTitle] = useState("");
+  const [assignTopic, setAssignTopic] = useState("Python");
+  const [assignDueDate, setAssignDueDate] = useState("");
+  const [assignDescription, setAssignDescription] = useState("");
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignNotice, setAssignNotice] = useState("");
+
+  const [teacherResults, setTeacherResults] = useState([]);
+  const [teacherLoading, setTeacherLoading] = useState(false);
+  const [teacherError, setTeacherError] = useState("");
+
   const starterPrompts = useMemo(
     () => [
       { label: "Explain loops", text: "Explain loops in Python with an example." },
       { label: "Arrays", text: "What is an array? Explain for KS3 with an example." },
-      {
-        label: "Python errors",
-        text: "I got a Python error: TypeError. What does it mean and how do I fix it?",
-      },
-      {
-        label: "Quiz me",
-        text: "Quiz me on variables (5 questions). Start easy then get harder.",
-      },
+      { label: "Python errors", text: "I got TypeError in Python. Help me debug." },
+      { label: "Hint me", text: "Give me a hint to solve FizzBuzz without giving full code." },
     ],
     []
   );
 
   const getToken = useCallback(() => localStorage.getItem(TOKEN_KEY) || "", []);
 
-  const fetchJson = useCallback(async (path, options = {}) => {
-    const token = getToken();
-    const headers = {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    };
+  const fetchJson = useCallback(
+    async (path, options = {}) => {
+      const token = getToken();
+      const headers = {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      };
+      if (token) headers.Authorization = `Bearer ${token}`;
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+      const res = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers,
+      });
 
-    const res = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers,
-    });
+      const rawText = await res.text();
+      let data = null;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        // noop
+      }
 
-    const rawText = await res.text();
-    let data = null;
+      return { res, data, rawText };
+    },
+    [getToken]
+  );
 
-    try {
-      data = JSON.parse(rawText);
-    } catch {
-      // noop
-    }
-
-    return { res, data, rawText };
-  }, [getToken]);
+  const isProPlan = isSubscriptionActive(billingStatus) || billingPlan === "pro";
 
   const fetchBillingStatus = useCallback(async () => {
     if (!user) return;
 
     setBillingLoading(true);
     setBillingError("");
-
     try {
       const { res, data, rawText } = await fetchJson("/api/billing/status", { method: "GET" });
-
       if (res.status === 401) {
         localStorage.removeItem(TOKEN_KEY);
         setUser(null);
         return;
       }
-
-      if (!res.ok) {
-        throw new Error(data?.error || rawText || "Failed to load billing status");
-      }
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to load billing status");
 
       setBillingStatus(data?.billing?.status || "inactive");
       setBillingPlan(data?.billing?.plan || "free");
@@ -123,12 +158,6 @@ export default function App() {
       setBillingDailyUsed(data?.billing?.usage?.dailyUsed ?? 0);
       setBillingDailyRemaining(data?.billing?.usage?.dailyRemaining ?? null);
     } catch (err) {
-      setBillingStatus("inactive");
-      setBillingPlan("free");
-      setBillingPeriodEnd(null);
-      setBillingDailyLimit(null);
-      setBillingDailyUsed(0);
-      setBillingDailyRemaining(null);
       setBillingError(err?.message || "Failed to load billing status");
     } finally {
       setBillingLoading(false);
@@ -137,22 +166,16 @@ export default function App() {
 
   const fetchProgressOverview = useCallback(async () => {
     if (!user) return;
-
     setProgressLoading(true);
     setProgressError("");
     try {
       const { res, data, rawText } = await fetchJson("/api/progress/overview", { method: "GET" });
-
       if (res.status === 401) {
         localStorage.removeItem(TOKEN_KEY);
         setUser(null);
         return;
       }
-
-      if (!res.ok) {
-        throw new Error(data?.error || rawText || "Failed to load progress dashboard");
-      }
-
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to load progress dashboard");
       setProgressData(data);
     } catch (err) {
       setProgressError(err?.message || "Failed to load progress dashboard");
@@ -163,37 +186,64 @@ export default function App() {
 
   const fetchChatHistory = useCallback(async () => {
     if (!user) return;
-
     setHistoryLoading(true);
     try {
       const { res, data, rawText } = await fetchJson("/api/chat/history?limit=120", { method: "GET" });
-
       if (res.status === 401) {
         localStorage.removeItem(TOKEN_KEY);
         setUser(null);
         return;
       }
-
-      if (!res.ok) {
-        throw new Error(data?.error || rawText || "Failed to load chat history");
-      }
-
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to load chat history");
       const history = Array.isArray(data?.messages) ? data.messages : [];
       if (!history.length) {
         setMessages([DEFAULT_WELCOME_MESSAGE]);
         return;
       }
-
       setMessages(
-        history.map((m) => ({
-          role: m.role === "user" ? "user" : "assistant",
-          content: m.content || "",
-        }))
+        history.map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.content || "" }))
       );
     } catch (err) {
       console.error("Fetch chat history error:", err);
     } finally {
       setHistoryLoading(false);
+    }
+  }, [fetchJson, user]);
+
+  const fetchLessons = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { res, data, rawText } = await fetchJson("/api/student/lessons", { method: "GET" });
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to load lessons");
+      setLessons(Array.isArray(data?.lessons) ? data.lessons : []);
+    } catch (err) {
+      console.error("Lessons error:", err);
+    }
+  }, [fetchJson, user]);
+
+  const fetchStudentTasks = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { res, data, rawText } = await fetchJson("/api/student/tasks", { method: "GET" });
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to load tasks");
+      setTasks(Array.isArray(data?.tasks) ? data.tasks : []);
+    } catch (err) {
+      console.error("Tasks error:", err);
+    }
+  }, [fetchJson, user]);
+
+  const fetchTeacherResults = useCallback(async () => {
+    if (!user || user.role !== "teacher") return;
+    setTeacherLoading(true);
+    setTeacherError("");
+    try {
+      const { res, data, rawText } = await fetchJson("/api/teacher/results", { method: "GET" });
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to load teacher results");
+      setTeacherResults(Array.isArray(data?.students) ? data.students : []);
+    } catch (err) {
+      setTeacherError(err?.message || "Failed to load teacher results");
+    } finally {
+      setTeacherLoading(false);
     }
   }, [fetchJson, user]);
 
@@ -205,24 +255,23 @@ export default function App() {
 
     try {
       const endpoint = authMode === "signup" ? "/api/auth/register" : "/api/auth/login";
+      const payload =
+        authMode === "signup"
+          ? { email: email.trim(), password, role: signupRole }
+          : { email: email.trim(), password };
+
       const { res, data, rawText } = await fetchJson(endpoint, {
         method: "POST",
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        throw new Error(data?.error || rawText || `Auth failed (${res.status})`);
-      }
-
-      if (!data?.token || !data?.user) {
-        throw new Error("Invalid auth response from server");
-      }
+      if (!res.ok) throw new Error(data?.error || rawText || `Auth failed (${res.status})`);
+      if (!data?.token || !data?.user) throw new Error("Invalid auth response from server");
 
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(LAST_EMAIL_KEY, data.user?.email || email.trim());
       setUser(data.user);
       setPassword("");
-      setAuthError("");
     } catch (err) {
       setAuthError(err?.message || "Authentication failed.");
     } finally {
@@ -230,40 +279,52 @@ export default function App() {
     }
   }
 
+  async function handleDemoAsk(e) {
+    if (e?.preventDefault) e.preventDefault();
+    const question = demoQuestion.trim();
+    if (!question || demoLoading) return;
+
+    setDemoLoading(true);
+    setDemoReply("");
+    setDemoError("");
+    try {
+      const { res, data, rawText } = await fetchJson("/api/demo/tutor", {
+        method: "POST",
+        body: JSON.stringify({ message: question }),
+      });
+      if (!res.ok) {
+        const fallback =
+          rawText?.includes("Cannot POST /api/demo/tutor")
+            ? "Demo endpoint is not deployed on the backend yet. Please redeploy backend."
+            : "Failed to run demo";
+        throw new Error(data?.error || fallback);
+      }
+      setDemoReply(data?.reply || "No demo response returned.");
+    } catch (err) {
+      setDemoError(err?.message || "Failed to run demo");
+    } finally {
+      setDemoLoading(false);
+    }
+  }
+
   async function handleSignOut() {
     localStorage.removeItem(TOKEN_KEY);
-    setUser(null);
-    setBillingStatus("inactive");
-    setBillingPlan("free");
-    setBillingPeriodEnd(null);
-    setBillingDailyLimit(null);
-    setBillingDailyUsed(0);
-    setBillingDailyRemaining(null);
-    setBillingError("");
-    setCheckoutNotice("");
     sessionStorage.removeItem(CHECKOUT_NOTICE_KEY);
-    setViewMode("tutor");
-    setProgressData(null);
-    setProgressError("");
+    setUser(null);
     setMessages([DEFAULT_WELCOME_MESSAGE]);
+    setCheckoutNotice("");
+    setBillingError("");
+    setViewMode("tutor");
+    setCodeEvalResult(null);
   }
 
   async function handleStartSubscription() {
     setBillingActionLoading(true);
     setBillingError("");
     try {
-      const { res, data, rawText } = await fetchJson("/api/billing/create-checkout-session", {
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        throw new Error(data?.error || rawText || `Failed to create checkout (${res.status})`);
-      }
-
-      if (!data?.url) {
-        throw new Error("No checkout URL returned from server");
-      }
-
+      const { res, data, rawText } = await fetchJson("/api/billing/create-checkout-session", { method: "POST" });
+      if (!res.ok) throw new Error(data?.error || rawText || `Failed to create checkout (${res.status})`);
+      if (!data?.url) throw new Error("No checkout URL returned from server");
       window.location.href = data.url;
     } catch (err) {
       setBillingError(err?.message || "Failed to start subscription checkout");
@@ -275,18 +336,9 @@ export default function App() {
     setBillingActionLoading(true);
     setBillingError("");
     try {
-      const { res, data, rawText } = await fetchJson("/api/billing/create-portal-session", {
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        throw new Error(data?.error || rawText || `Failed to open billing portal (${res.status})`);
-      }
-
-      if (!data?.url) {
-        throw new Error("No billing portal URL returned from server");
-      }
-
+      const { res, data, rawText } = await fetchJson("/api/billing/create-portal-session", { method: "POST" });
+      if (!res.ok) throw new Error(data?.error || rawText || `Failed to open billing portal (${res.status})`);
+      if (!data?.url) throw new Error("No billing portal URL returned from server");
       window.location.href = data.url;
     } catch (err) {
       setBillingError(err?.message || "Failed to open billing portal");
@@ -296,18 +348,8 @@ export default function App() {
 
   async function sendMessage(e, forcedText) {
     if (e?.preventDefault) e.preventDefault();
-
     const text = (forcedText ?? input).trim();
     if (!text || loading) return;
-
-    if (!getToken()) {
-      setMessages((m) => [
-        ...m,
-        { role: "assistant", content: "Please log in again to continue." },
-      ]);
-      setUser(null);
-      return;
-    }
 
     setMessages((m) => [...m, { role: "user", content: text }, { role: "assistant", content: "" }]);
     setInput("");
@@ -323,7 +365,7 @@ export default function App() {
       });
     };
 
-    const fallbackToNonStream = async () => {
+    const nonStreamCall = async () => {
       const { res, data, rawText } = await fetchJson("/api/tutor", {
         method: "POST",
         body: JSON.stringify({ message: text, level, topic, mode }),
@@ -345,124 +387,221 @@ export default function App() {
         throw new Error(data?.error || "This action needs Pro or available free turns.");
       }
 
-      if (!res.ok) {
-        throw new Error(data?.error || rawText || `API error (${res.status})`);
-      }
-
-      const reply =
-        data?.reply ??
-        data?.message ??
-        data?.content ??
-        data?.response ??
-        (typeof data === "string" ? data : "");
-
-      setAssistantContent(reply || "I got a response but it had no reply field.");
+      if (!res.ok) throw new Error(data?.error || rawText || `API error (${res.status})`);
+      const reply = data?.reply ?? data?.message ?? data?.content ?? "No reply returned.";
+      setAssistantContent(reply);
     };
 
     try {
-      const token = getToken();
-      const res = await fetch(`${API_BASE}/api/tutor/stream`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ message: text, level, topic, mode }),
-      });
-
-      if (res.status === 401) {
-        localStorage.removeItem(TOKEN_KEY);
-        setUser(null);
-        throw new Error("Session expired. Please log in again.");
-      }
-
-      if (res.status === 402 || res.status === 403 || res.status === 429) {
-        const rawText = await res.text();
-        let data = null;
-        try {
-          data = JSON.parse(rawText);
-        } catch {
-          // noop
-        }
-        setBillingStatus(data?.billing?.status || "inactive");
-        setBillingPlan(data?.billing?.plan || "free");
-        setBillingPeriodEnd(data?.billing?.currentPeriodEnd || null);
-        setBillingDailyLimit(data?.billing?.usage?.dailyLimit ?? null);
-        setBillingDailyUsed(data?.billing?.usage?.dailyUsed ?? 0);
-        setBillingDailyRemaining(data?.billing?.usage?.dailyRemaining ?? null);
-        throw new Error(data?.error || "This action needs Pro or available free turns.");
-      }
-
-      if (!res.ok) {
-        await fallbackToNonStream();
-        return;
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) {
-        throw new Error("No response stream body");
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let streamedContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        let delimiterIndex = buffer.indexOf("\n\n");
-
-        while (delimiterIndex !== -1) {
-          const eventBlock = buffer.slice(0, delimiterIndex);
-          buffer = buffer.slice(delimiterIndex + 2);
-          delimiterIndex = buffer.indexOf("\n\n");
-
-          const dataLine = eventBlock
-            .split("\n")
-            .find((line) => line.startsWith("data: "));
-
-          if (!dataLine) continue;
-
-          let payload = null;
-          try {
-            payload = JSON.parse(dataLine.slice(6));
-          } catch {
-            continue;
-          }
-
-          if (payload?.error) {
-            throw new Error(payload.error);
-          }
-
-          if (typeof payload?.delta === "string" && payload.delta.length) {
-            streamedContent += payload.delta;
-            setAssistantContent(streamedContent);
-          }
-        }
-      }
-
-      if (!streamedContent.trim()) {
-        setAssistantContent("I got a response but it had no reply text.");
-      }
-    } catch {
-      try {
-        await fallbackToNonStream();
-      } catch (err) {
-        setMessages((m) => [
-          ...m.slice(0, -1),
-          {
-            role: "assistant",
-            content:
-              err?.message ||
-              "Error calling tutor API. Check backend is running, CORS is enabled, and the endpoint exists.",
+      if (!isProPlan) {
+        await nonStreamCall();
+      } else {
+        const token = getToken();
+        const res = await fetch(`${API_BASE}/api/tutor/stream`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
-        ]);
+          body: JSON.stringify({ message: text, level, topic, mode }),
+        });
+
+        if (!res.ok || !res.body) {
+          await nonStreamCall();
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let streamedContent = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let idx = buffer.indexOf("\n\n");
+          while (idx !== -1) {
+            const block = buffer.slice(0, idx);
+            buffer = buffer.slice(idx + 2);
+            idx = buffer.indexOf("\n\n");
+
+            const dataLine = block.split("\n").find((line) => line.startsWith("data: "));
+            if (!dataLine) continue;
+
+            let payload = null;
+            try {
+              payload = JSON.parse(dataLine.slice(6));
+            } catch {
+              continue;
+            }
+
+            if (payload?.error) throw new Error(payload.error);
+            if (typeof payload?.delta === "string") {
+              streamedContent += payload.delta;
+              setAssistantContent(streamedContent);
+            }
+          }
+        }
+
+        if (!streamedContent.trim()) setAssistantContent("I got a response but it was empty.");
       }
+    } catch (err) {
+      setMessages((m) => [
+        ...m.slice(0, -1),
+        { role: "assistant", content: err?.message || "Failed to get tutor response." },
+      ]);
     } finally {
       setLoading(false);
       fetchProgressOverview();
+      fetchBillingStatus();
+    }
+  }
+
+  async function handleEvaluateCode() {
+    if (!codeInput.trim()) {
+      setCodeEvalError("Paste code to evaluate.");
+      return;
+    }
+    setCodeEvalLoading(true);
+    setCodeEvalError("");
+    try {
+      const { res, data, rawText } = await fetchJson("/api/code/evaluate", {
+        method: "POST",
+        body: JSON.stringify({ code: codeInput, language: codeLanguage, topic }),
+      });
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to evaluate code");
+      setCodeEvalResult(data?.evaluation || null);
+      fetchProgressOverview();
+    } catch (err) {
+      setCodeEvalError(err?.message || "Failed to evaluate code");
+    } finally {
+      setCodeEvalLoading(false);
+    }
+  }
+
+  async function handleCreateLesson(e) {
+    e.preventDefault();
+    if (!lessonTitle.trim()) return;
+    setLessonSaving(true);
+    try {
+      const { res, data, rawText } = await fetchJson("/api/student/lessons", {
+        method: "POST",
+        body: JSON.stringify({ title: lessonTitle.trim(), topic: lessonTopic.trim() || topic }),
+      });
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to create lesson");
+      setLessons((prev) => [data.lesson, ...prev]);
+      setLessonTitle("");
+      setLessonTopic("");
+      fetchProgressOverview();
+    } catch (err) {
+      setProgressError(err?.message || "Failed to create lesson");
+    } finally {
+      setLessonSaving(false);
+    }
+  }
+
+  async function handleToggleLesson(lessonId, completed) {
+    try {
+      const { res, data, rawText } = await fetchJson(`/api/student/lessons/${lessonId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ completed }),
+      });
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to update lesson");
+      setLessons((prev) => prev.map((lesson) => (lesson.id === lessonId ? data.lesson : lesson)));
+      fetchProgressOverview();
+    } catch (err) {
+      setProgressError(err?.message || "Failed to update lesson");
+    }
+  }
+
+  async function handleSaveQuizAttempt(e) {
+    e.preventDefault();
+    setQuizSaving(true);
+    try {
+      const { res, data, rawText } = await fetchJson("/api/student/quiz-attempts", {
+        method: "POST",
+        body: JSON.stringify({ topic: quizTopic, score: Number(quizScore), maxScore: Number(quizMaxScore) }),
+      });
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to save quiz score");
+      if (data?.attempt) {
+        setQuizScore("8");
+        setQuizMaxScore("10");
+      }
+      fetchProgressOverview();
+    } catch (err) {
+      setProgressError(err?.message || "Failed to save quiz score");
+    } finally {
+      setQuizSaving(false);
+    }
+  }
+
+  async function handleUpdateTaskStatus(taskId, status) {
+    setTaskSavingId(taskId);
+    try {
+      const { res, data, rawText } = await fetchJson(`/api/student/tasks/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to update task status");
+      setTasks((prev) => prev.map((task) => (task.id === taskId ? data.task : task)));
+    } catch (err) {
+      setProgressError(err?.message || "Failed to update task status");
+    } finally {
+      setTaskSavingId(null);
+    }
+  }
+
+  async function handleGenerateTeacherQuiz(e) {
+    e.preventDefault();
+    setTeacherQuizLoading(true);
+    setTeacherError("");
+    try {
+      const { res, data, rawText } = await fetchJson("/api/teacher/quizzes/generate", {
+        method: "POST",
+        body: JSON.stringify({
+          topic: teacherTopic,
+          level: teacherLevel,
+          numQuestions: Number(teacherQuestionCount),
+          title: teacherQuizTitle.trim() || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to generate quiz");
+      setTeacherQuizResult(data?.quiz || null);
+    } catch (err) {
+      setTeacherError(err?.message || "Failed to generate quiz");
+    } finally {
+      setTeacherQuizLoading(false);
+    }
+  }
+
+  async function handleAssignTask(e) {
+    e.preventDefault();
+    setAssignLoading(true);
+    setTeacherError("");
+    setAssignNotice("");
+    try {
+      const { res, data, rawText } = await fetchJson("/api/teacher/tasks/assign", {
+        method: "POST",
+        body: JSON.stringify({
+          studentEmail: assignEmail,
+          title: assignTitle,
+          topic: assignTopic,
+          description: assignDescription,
+          dueDate: assignDueDate || null,
+        }),
+      });
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to assign task");
+      setAssignNotice(`Task assigned to ${data?.student?.email || assignEmail}.`);
+      setAssignTitle("");
+      setAssignDescription("");
+      setAssignDueDate("");
+      fetchTeacherResults();
+    } catch (err) {
+      setTeacherError(err?.message || "Failed to assign task");
+    } finally {
+      setAssignLoading(false);
     }
   }
 
@@ -475,7 +614,6 @@ export default function App() {
         if (mounted) setAuthChecking(false);
         return;
       }
-
       try {
         const { res, data } = await fetchJson("/api/auth/me", { method: "GET" });
         if (!res.ok || !data?.user) {
@@ -502,55 +640,34 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     fetchBillingStatus();
-  }, [user, fetchBillingStatus]);
-
-  useEffect(() => {
-    if (!user) return;
     fetchChatHistory();
-  }, [user, fetchChatHistory]);
-
-  useEffect(() => {
-    if (!user) return;
     fetchProgressOverview();
-  }, [user, fetchProgressOverview]);
+    fetchLessons();
+    fetchStudentTasks();
+    if (user.role === "teacher") fetchTeacherResults();
+  }, [user, fetchBillingStatus, fetchChatHistory, fetchProgressOverview, fetchLessons, fetchStudentTasks, fetchTeacherResults]);
 
   useEffect(() => {
     const storedNotice = sessionStorage.getItem(CHECKOUT_NOTICE_KEY);
-    if (storedNotice) {
-      setCheckoutNotice(storedNotice);
-    }
+    if (storedNotice) setCheckoutNotice(storedNotice);
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
-      const successNotice = getToken()
+      const notice = getToken()
         ? "Subscription activated successfully. Welcome to CodeQuest Pro."
         : "Payment successful. Log in with the same email to unlock CodeQuest Pro.";
-      setCheckoutNotice(successNotice);
-      sessionStorage.setItem(CHECKOUT_NOTICE_KEY, successNotice);
-      fetchBillingStatus();
+      setCheckoutNotice(notice);
+      sessionStorage.setItem(CHECKOUT_NOTICE_KEY, notice);
       window.history.replaceState({}, "", window.location.pathname);
     }
+
     if (params.get("checkout") === "cancel") {
-      const cancelNotice = "Checkout canceled. You can subscribe any time.";
-      setCheckoutNotice(cancelNotice);
-      sessionStorage.setItem(CHECKOUT_NOTICE_KEY, cancelNotice);
+      const notice = "Checkout canceled. You can subscribe any time.";
+      setCheckoutNotice(notice);
+      sessionStorage.setItem(CHECKOUT_NOTICE_KEY, notice);
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [fetchBillingStatus, getToken]);
-
-  useEffect(() => {
-    if (!user || !isSubscriptionActive(billingStatus)) return;
-    const successNotice = "Subscription activated successfully. Welcome to CodeQuest Pro.";
-    setCheckoutNotice(successNotice);
-    sessionStorage.setItem(CHECKOUT_NOTICE_KEY, successNotice);
-  }, [user, billingStatus]);
-
-  useEffect(() => {
-    const isPro = isSubscriptionActive(billingStatus) || billingPlan === "pro";
-    if (!isPro && (mode === "Quiz" || mode === "Mark")) {
-      setMode("Explain");
-    }
-  }, [billingPlan, billingStatus, mode]);
+  }, [getToken]);
 
   useEffect(() => {
     if (!chatRef.current) return;
@@ -561,16 +678,16 @@ export default function App() {
   const topTopics = progressData?.topicBreakdown?.slice(0, 5) || [];
   const modeBreakdown = progressData?.modeBreakdown || [];
   const dailyActivity = progressData?.dailyActivity || [];
+  const completedTopics = progressData?.completedTopics || [];
+
   const lastActiveLabel = progressData?.summary?.lastActiveAt
-    ? new Date(progressData.summary.lastActiveAt).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-      })
+    ? new Date(progressData.summary.lastActiveAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
     : "Never";
+
   const renewalLabel = billingPeriodEnd
     ? new Date(billingPeriodEnd).toLocaleDateString(undefined, { month: "short", day: "numeric" })
     : "TBD";
-  const isProPlan = isSubscriptionActive(billingStatus) || billingPlan === "pro";
+
   const freeTurnsLabel =
     billingDailyLimit == null || billingDailyRemaining == null
       ? null
@@ -603,43 +720,7 @@ export default function App() {
             <div className="landingCopy">
               <p className="heroKicker">AI-Powered Learning Platform</p>
               <h1>Master Computer Science with structured, exam-ready coaching</h1>
-              <p className="heroText">
-                Get instant explanations, adaptive hints, targeted quizzes, and clear mark-scheme
-                feedback in one focused workspace.
-              </p>
-
-              <div className="heroStats">
-                <article>
-                  <strong>4</strong>
-                  <span>Learning modes</span>
-                </article>
-                <article>
-                  <strong>24/7</strong>
-                  <span>On-demand support</span>
-                </article>
-                <article>
-                  <strong>Step-by-step</strong>
-                  <span>Exam-style guidance</span>
-                </article>
-              </div>
-
-              <div className="trustStrip">
-                <span>Explain</span>
-                <span>Hint</span>
-                <span>Quiz</span>
-                <span>Mark</span>
-              </div>
-
-              <div className="heroPanels">
-                <article>
-                  <h3>Adaptive tutoring</h3>
-                  <p>Responses are tailored by level, topic, and your current learning mode.</p>
-                </article>
-                <article>
-                  <h3>Exam confidence</h3>
-                  <p>Practice with progressively harder tasks and focused improvement feedback.</p>
-                </article>
-              </div>
+              <p className="heroText">Learn coding faster with tutor chat, code evaluation, lesson tracking, and dashboards.</p>
             </div>
 
             <section className="authCard">
@@ -647,39 +728,41 @@ export default function App() {
               <p>Login or create an account to access your personalized tutor.</p>
               {checkoutNotice && <p className="paywallNotice authCheckoutNotice">{checkoutNotice}</p>}
 
+              <div className="demoCard">
+                <h3>Try one question first</h3>
+                <form className="inlineForm" onSubmit={handleDemoAsk}>
+                  <input
+                    value={demoQuestion}
+                    onChange={(e) => setDemoQuestion(e.target.value)}
+                    placeholder="Ask a coding question..."
+                  />
+                  <button type="submit" className="modeBtn" disabled={demoLoading}>
+                    {demoLoading ? "Thinking..." : "Try demo"}
+                  </button>
+                </form>
+                {demoError && <p className="authError">{demoError}</p>}
+                {demoReply && (
+                  <div className="demoReply">
+                    <ReactMarkdown>{demoReply}</ReactMarkdown>
+                    <p className="demoHint">Create a free account to continue learning with saved progress.</p>
+                  </div>
+                )}
+              </div>
+
               <div className="authModeRow">
-                <button
-                  type="button"
-                  className={`modeBtn ${authMode === "login" ? "active" : ""}`}
-                  onClick={() => setAuthMode("login")}
-                >
-                  Login
-                </button>
-                <button
-                  type="button"
-                  className={`modeBtn ${authMode === "signup" ? "active" : ""}`}
-                  onClick={() => setAuthMode("signup")}
-                >
-                  Sign Up
-                </button>
+                <button type="button" className={`modeBtn ${authMode === "login" ? "active" : ""}`} onClick={() => setAuthMode("login")}>Login</button>
+                <button type="button" className={`modeBtn ${authMode === "signup" ? "active" : ""}`} onClick={() => setAuthMode("signup")}>Sign Up</button>
               </div>
 
               <form className="authForm" onSubmit={handleEmailAuth}>
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <input
-                  type="password"
-                  placeholder="Password (min 6 chars)"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
+                <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <input type="password" placeholder="Password (min 6 chars)" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+                {authMode === "signup" && (
+                  <select value={signupRole} onChange={(e) => setSignupRole(e.target.value)}>
+                    <option value="student">Student account</option>
+                    <option value="teacher">Teacher account</option>
+                  </select>
+                )}
                 <button type="submit" className="sendBtn" disabled={authLoading}>
                   {authLoading ? "Please wait..." : authMode === "signup" ? "Create account" : "Login"}
                 </button>
@@ -693,23 +776,12 @@ export default function App() {
     );
   }
 
-  if (billingLoading) {
+  if (billingLoading || historyLoading) {
     return (
       <div className="authShell">
         <section className="authCard authLoadingCard">
-          <h1>Checking your plan</h1>
-          <p>Loading billing status...</p>
-        </section>
-      </div>
-    );
-  }
-
-  if (historyLoading) {
-    return (
-      <div className="authShell">
-        <section className="authCard authLoadingCard">
-          <h1>Loading your chat history</h1>
-          <p>Syncing previous messages...</p>
+          <h1>Loading your workspace</h1>
+          <p>Syncing billing, chat, and progress...</p>
         </section>
       </div>
     );
@@ -720,35 +792,21 @@ export default function App() {
       <header className="top">
         <div className="brand">
           <h1>CodeQuest AI Tutor</h1>
-          <p className="subtitle">
-            Learn Computer Science with an AI tutor that explains step-by-step.
-          </p>
+          <p className="subtitle">Learn Computer Science with an AI tutor that explains step-by-step.</p>
           <div className="badges">
             <span className="badge">{isProPlan ? "Pro" : "Free"}</span>
+            <span className="badge">Role: {user.role || "student"}</span>
             {isProPlan ? (
               <span className="badge planBadgeInline">Plan active • Renews {renewalLabel}</span>
             ) : (
               <span className="badge freeBadgeInline">{freeTurnsLabel || "Free tier access enabled"}</span>
             )}
             <span className="badge">Session turns: {Math.max(messages.length - 1, 0)}</span>
-            <span className="badge">{user.email || "Signed in user"}</span>
-            {isProPlan ? (
-              <button type="button" className="badge signOutBtn" onClick={handleManageBilling}>
-                Billing
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="badge signOutBtn"
-                onClick={handleStartSubscription}
-                disabled={billingActionLoading}
-              >
-                {billingActionLoading ? "Opening..." : "Upgrade"}
-              </button>
-            )}
-            <button type="button" className="badge signOutBtn" onClick={handleSignOut}>
-              Log out
+            <span className="badge">{user.email}</span>
+            <button type="button" className="badge signOutBtn" onClick={isProPlan ? handleManageBilling : handleStartSubscription} disabled={billingActionLoading}>
+              {isProPlan ? "Billing" : billingActionLoading ? "Opening..." : "Upgrade"}
             </button>
+            <button type="button" className="badge signOutBtn" onClick={handleSignOut}>Log out</button>
           </div>
         </div>
 
@@ -758,7 +816,6 @@ export default function App() {
             <option>GCSE</option>
             <option>A-Level</option>
           </select>
-
           <select value={topic} onChange={(e) => setTopic(e.target.value)}>
             <option>Python</option>
             <option>Algorithms</option>
@@ -767,7 +824,6 @@ export default function App() {
             <option>SQL</option>
             <option>Networks</option>
           </select>
-
           <select value={mode} onChange={(e) => setMode(e.target.value)}>
             <option>Explain</option>
             <option>Hint</option>
@@ -782,13 +838,8 @@ export default function App() {
         <section className="freePlanBanner">
           <div>
             <h3>Free plan</h3>
-            <p>
-              You can use Explain and Hint with daily limits. Upgrade to unlock Quiz, Mark, and streaming responses.
-            </p>
-            <p className="freePlanMeta">
-              Usage today: {billingDailyUsed}
-              {billingDailyLimit == null ? "" : ` / ${billingDailyLimit}`}
-            </p>
+            <p>Use Explain + Hint with daily limits. Upgrade for Quiz, Mark, and streaming.</p>
+            <p className="freePlanMeta">Usage today: {billingDailyUsed}{billingDailyLimit == null ? "" : ` / ${billingDailyLimit}`}</p>
           </div>
           <button type="button" className="sendBtn" onClick={handleStartSubscription} disabled={billingActionLoading}>
             {billingActionLoading ? "Redirecting..." : "Upgrade to Pro"}
@@ -798,122 +849,232 @@ export default function App() {
       {billingError && <p className="authError">{billingError}</p>}
 
       <div className="workspaceTabs">
-        <button
-          type="button"
-          className={`modeBtn ${viewMode === "tutor" ? "active" : ""}`}
-          onClick={() => setViewMode("tutor")}
-        >
-          Tutor Workspace
-        </button>
-        <button
-          type="button"
-          className={`modeBtn ${viewMode === "dashboard" ? "active" : ""}`}
-          onClick={() => {
-            setViewMode("dashboard");
-            fetchProgressOverview();
-          }}
-        >
-          Progress Dashboard
-        </button>
+        <button type="button" className={`modeBtn ${viewMode === "tutor" ? "active" : ""}`} onClick={() => setViewMode("tutor")}>Tutor Workspace</button>
+        <button type="button" className={`modeBtn ${viewMode === "dashboard" ? "active" : ""}`} onClick={() => { setViewMode("dashboard"); setStudentDashTab("overview"); fetchProgressOverview(); }}>Student Dashboard</button>
+        {user.role === "teacher" && (
+          <button type="button" className={`modeBtn ${viewMode === "teacher" ? "active" : ""}`} onClick={() => { setViewMode("teacher"); fetchTeacherResults(); }}>Teacher Dashboard</button>
+        )}
       </div>
 
       {viewMode === "dashboard" && (
         <section className="dashboard">
           <div className="dashboardHead">
             <h2>Student Progress</h2>
-            <button type="button" className="googleBtn" onClick={fetchProgressOverview} disabled={progressLoading}>
-              {progressLoading ? "Refreshing..." : "Refresh"}
-            </button>
+            <button type="button" className="googleBtn" onClick={() => { fetchProgressOverview(); fetchLessons(); fetchStudentTasks(); }} disabled={progressLoading}>Refresh</button>
           </div>
-
           {progressError && <p className="authError">{progressError}</p>}
 
           <div className="metricsGrid">
-            <article className="metricCard">
-              <span>Total turns</span>
-              <strong>{progressData?.summary?.totalTurns || 0}</strong>
-            </article>
-            <article className="metricCard">
-              <span>Topics covered</span>
-              <strong>{progressData?.summary?.topicsCovered || 0}</strong>
-            </article>
-            <article className="metricCard">
-              <span>Quizzes taken</span>
-              <strong>{progressData?.summary?.quizzesTaken || 0}</strong>
-            </article>
-            <article className="metricCard">
-              <span>Marks requested</span>
-              <strong>{progressData?.summary?.marksRequested || 0}</strong>
-            </article>
-            <article className="metricCard">
-              <span>Current streak</span>
-              <strong>{progressData?.summary?.currentStreakDays || 0} day(s)</strong>
-            </article>
-            <article className="metricCard">
-              <span>Last active</span>
-              <strong>{lastActiveLabel}</strong>
-            </article>
+            <article className="metricCard"><span>Total turns</span><strong>{progressData?.summary?.totalTurns || 0}</strong></article>
+            <article className="metricCard"><span>Topics covered</span><strong>{progressData?.summary?.topicsCovered || 0}</strong></article>
+            <article className="metricCard"><span>Lessons completed</span><strong>{progressData?.summary?.lessonsCompleted || 0} / {progressData?.summary?.lessonsTotal || 0}</strong></article>
+            <article className="metricCard"><span>Quizzes taken</span><strong>{progressData?.summary?.quizzesTaken || 0}</strong></article>
+            <article className="metricCard"><span>Avg quiz score</span><strong>{progressData?.summary?.averageQuizScore || 0}%</strong></article>
+            <article className="metricCard"><span>Avg code score</span><strong>{progressData?.summary?.averageCodeScore || 0} / 10</strong></article>
+            <article className="metricCard"><span>Current streak</span><strong>{progressData?.summary?.currentStreakDays || 0} day(s)</strong></article>
+            <article className="metricCard"><span>Last active</span><strong>{lastActiveLabel}</strong></article>
           </div>
+
+          <div className="dashboardSectionTabs">
+            <button type="button" className={`modeBtn ${studentDashTab === "overview" ? "active" : ""}`} onClick={() => setStudentDashTab("overview")}>Overview</button>
+            <button type="button" className={`modeBtn ${studentDashTab === "lessons" ? "active" : ""}`} onClick={() => setStudentDashTab("lessons")}>Lessons</button>
+            <button type="button" className={`modeBtn ${studentDashTab === "quizzes" ? "active" : ""}`} onClick={() => setStudentDashTab("quizzes")}>Quizzes</button>
+            <button type="button" className={`modeBtn ${studentDashTab === "tasks" ? "active" : ""}`} onClick={() => setStudentDashTab("tasks")}>Tasks</button>
+            <button type="button" className={`modeBtn ${studentDashTab === "code" ? "active" : ""}`} onClick={() => setStudentDashTab("code")}>Code Review</button>
+          </div>
+
+          {studentDashTab === "overview" && (
+            <div className="dashboardGrid">
+              <article className="dashboardCard">
+                <h3>Top topics</h3>
+                {topTopics.length === 0 && <p>No topic activity yet.</p>}
+                {topTopics.map((item) => {
+                  const max = topTopics[0]?.count || 1;
+                  const width = Math.max(8, Math.round((item.count / max) * 100));
+                  return (
+                    <div key={item.topic} className="progressRow">
+                      <div className="progressMeta"><span>{item.topic}</span><strong>{item.count}</strong></div>
+                      <div className="progressTrack"><div className="progressBar" style={{ width: `${width}%` }} /></div>
+                    </div>
+                  );
+                })}
+              </article>
+
+              <article className="dashboardCard">
+                <h3>Mode usage</h3>
+                {modeBreakdown.length === 0 && <p>No mode activity yet.</p>}
+                <div className="modeChips">
+                  {modeBreakdown.map((item) => (
+                    <span key={item.mode} className="badge">{item.mode}: {item.count}</span>
+                  ))}
+                </div>
+                <h3 style={{ marginTop: 14 }}>Completed topics</h3>
+                {completedTopics.length === 0 && <p>No completed topics yet.</p>}
+                <div className="modeChips">
+                  {completedTopics.map((item) => (
+                    <span key={item} className="badge">{item}</span>
+                  ))}
+                </div>
+              </article>
+
+              <article className="dashboardCard">
+                <h3>Last 7 days activity</h3>
+                {dailyActivity.length === 0 && <p>No recent activity yet.</p>}
+                {dailyActivity.map((item) => (
+                  <div key={item.date} className="progressRow">
+                    <div className="progressMeta"><span>{item.date.slice(5)}</span><strong>{item.turns}</strong></div>
+                    <div className="progressTrack">
+                      <div className="progressBar" style={{ width: `${Math.max(8, Math.round((item.turns / Math.max(...dailyActivity.map((d) => d.turns), 1)) * 100))}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </article>
+            </div>
+          )}
+
+          {studentDashTab === "lessons" && (
+            <article className="dashboardCard">
+              <h3>Track lessons</h3>
+              <form className="inlineForm" onSubmit={handleCreateLesson}>
+                <input value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} placeholder="Lesson title" />
+                <input value={lessonTopic} onChange={(e) => setLessonTopic(e.target.value)} placeholder="Topic" />
+                <button className="modeBtn" type="submit" disabled={lessonSaving}>{lessonSaving ? "Saving..." : "Add lesson"}</button>
+              </form>
+              <div className="simpleList">
+                {lessons.slice(0, 16).map((lesson) => (
+                  <div key={lesson.id} className="listRow">
+                    <span>{lesson.title} {lesson.topic ? `(${lesson.topic})` : ""}</span>
+                    <button type="button" className="modeBtn" onClick={() => handleToggleLesson(lesson.id, !lesson.completed)}>
+                      {lesson.completed ? "Completed" : "Mark done"}
+                    </button>
+                  </div>
+                ))}
+                {!lessons.length && <p>No lessons yet. Add your first lesson above.</p>}
+              </div>
+            </article>
+          )}
+
+          {studentDashTab === "quizzes" && (
+            <article className="dashboardCard">
+              <h3>Log quiz score</h3>
+              <form className="inlineForm" onSubmit={handleSaveQuizAttempt}>
+                <input value={quizTopic} onChange={(e) => setQuizTopic(e.target.value)} placeholder="Topic" />
+                <input value={quizScore} onChange={(e) => setQuizScore(e.target.value)} placeholder="Score" type="number" />
+                <input value={quizMaxScore} onChange={(e) => setQuizMaxScore(e.target.value)} placeholder="Max" type="number" />
+                <button className="modeBtn" type="submit" disabled={quizSaving}>{quizSaving ? "Saving..." : "Save score"}</button>
+              </form>
+            </article>
+          )}
+
+          {studentDashTab === "tasks" && (
+            <article className="dashboardCard">
+              <h3>Assigned tasks</h3>
+              <div className="simpleList">
+                {tasks.slice(0, 16).map((task) => (
+                  <div key={task.id} className="listRow">
+                    <span>{task.title} ({task.topic || "General"})</span>
+                    <select value={task.status} onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)} disabled={taskSavingId === task.id}>
+                      <option value="pending">Pending</option>
+                      <option value="in_progress">In progress</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                ))}
+                {!tasks.length && <p>No tasks assigned yet.</p>}
+              </div>
+            </article>
+          )}
+
+          {studentDashTab === "code" && (
+            <article className="dashboardCard">
+              <h3>Code review</h3>
+              <p>Use the Tutor Workspace side panel for full code evaluation feedback with score and tips.</p>
+              {codeEvalResult ? (
+                <div className="meta">
+                  <p><strong>Latest score:</strong> {codeEvalResult.score}/10</p>
+                  <p>{codeEvalResult.summary}</p>
+                </div>
+              ) : (
+                <p>No code review yet. Open Tutor Workspace and evaluate code.</p>
+              )}
+            </article>
+          )}
+        </section>
+      )}
+
+      {viewMode === "teacher" && user.role === "teacher" && (
+        <section className="dashboard">
+          <div className="dashboardHead">
+            <h2>Teacher Dashboard</h2>
+            <button type="button" className="googleBtn" onClick={fetchTeacherResults} disabled={teacherLoading}>Refresh</button>
+          </div>
+          {teacherError && <p className="authError">{teacherError}</p>}
+          {assignNotice && <p className="paywallNotice inlineNotice">{assignNotice}</p>}
 
           <div className="dashboardGrid">
             <article className="dashboardCard">
-              <h3>Top topics</h3>
-              {topTopics.length === 0 && <p>No topic activity yet.</p>}
-              {topTopics.map((item) => {
-                const max = topTopics[0]?.count || 1;
-                const width = Math.max(8, Math.round((item.count / max) * 100));
-                return (
-                  <div key={item.topic} className="progressRow">
-                    <div className="progressMeta">
-                      <span>{item.topic}</span>
-                      <strong>{item.count}</strong>
-                    </div>
-                    <div className="progressTrack">
-                      <div className="progressBar" style={{ width: `${width}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </article>
-
-            <article className="dashboardCard">
-              <h3>Mode usage</h3>
-              {modeBreakdown.length === 0 && <p>No mode activity yet.</p>}
-              <div className="modeChips">
-                {modeBreakdown.map((item) => (
-                  <span key={item.mode} className="badge">
-                    {item.mode}: {item.count}
-                  </span>
-                ))}
-              </div>
-            </article>
-
-            <article className="dashboardCard">
-              <h3>Last 7 days activity</h3>
-              {dailyActivity.length === 0 && <p>No recent activity yet.</p>}
-              {dailyActivity.map((item) => (
-                <div key={item.date} className="progressRow">
-                  <div className="progressMeta">
-                    <span>{item.date.slice(5)}</span>
-                    <strong>{item.turns}</strong>
-                  </div>
-                  <div className="progressTrack">
-                    <div
-                      className="progressBar"
-                      style={{
-                        width: `${Math.max(
-                          8,
-                          Math.round(
-                            (item.turns /
-                              Math.max(...dailyActivity.map((d) => d.turns), 1)) *
-                              100
-                          )
-                        )}%`,
-                      }}
-                    />
-                  </div>
+              <h3>Generate coding quiz</h3>
+              <form className="inlineForm" onSubmit={handleGenerateTeacherQuiz}>
+                <input value={teacherQuizTitle} onChange={(e) => setTeacherQuizTitle(e.target.value)} placeholder="Quiz title (optional)" />
+                <input value={teacherTopic} onChange={(e) => setTeacherTopic(e.target.value)} placeholder="Topic" />
+                <select value={teacherLevel} onChange={(e) => setTeacherLevel(e.target.value)}>
+                  <option>KS3</option>
+                  <option>GCSE</option>
+                  <option>A-Level</option>
+                </select>
+                <input type="number" value={teacherQuestionCount} onChange={(e) => setTeacherQuestionCount(e.target.value)} placeholder="Questions" min={1} max={10} />
+                <button type="submit" className="modeBtn" disabled={teacherQuizLoading}>{teacherQuizLoading ? "Generating..." : "Generate"}</button>
+              </form>
+              {teacherQuizResult?.questions?.length > 0 && (
+                <div className="simpleList">
+                  {teacherQuizResult.questions.map((q) => (
+                    <div key={q.id} className="listCol"><strong>Q{q.id}.</strong> {q.question}</div>
+                  ))}
                 </div>
-              ))}
+              )}
+            </article>
+
+            <article className="dashboardCard">
+              <h3>Assign task</h3>
+              <form className="inlineForm" onSubmit={handleAssignTask}>
+                <input value={assignEmail} onChange={(e) => setAssignEmail(e.target.value)} placeholder="Student email" required />
+                <input value={assignTitle} onChange={(e) => setAssignTitle(e.target.value)} placeholder="Task title" required />
+                <input value={assignTopic} onChange={(e) => setAssignTopic(e.target.value)} placeholder="Topic" />
+                <input type="date" value={assignDueDate} onChange={(e) => setAssignDueDate(e.target.value)} />
+                <textarea value={assignDescription} onChange={(e) => setAssignDescription(e.target.value)} placeholder="Task details" rows={3} />
+                <button type="submit" className="modeBtn" disabled={assignLoading}>{assignLoading ? "Assigning..." : "Assign"}</button>
+              </form>
+            </article>
+
+            <article className="dashboardCard" style={{ gridColumn: "1 / -1" }}>
+              <h3>Student results</h3>
+              {teacherLoading && <p>Loading teacher analytics...</p>}
+              {!teacherLoading && (
+                <div className="tableWrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>Tasks</th>
+                        <th>Completed</th>
+                        <th>Avg quiz %</th>
+                        <th>Avg code /10</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teacherResults.map((row) => (
+                        <tr key={row.student_id}>
+                          <td>{row.student_email}</td>
+                          <td>{row.assigned_tasks}</td>
+                          <td>{row.completed_tasks}</td>
+                          <td>{row.avg_quiz_percent}</td>
+                          <td>{row.avg_code_score}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </article>
           </div>
         </section>
@@ -924,14 +1085,7 @@ export default function App() {
           <div className="starters">
             <span className="startersLabel">Try:</span>
             {starterPrompts.map((p) => (
-              <button
-                key={p.label}
-                type="button"
-                onClick={() => sendMessage(null, p.text)}
-                disabled={loading}
-              >
-                {p.label}
-              </button>
+              <button key={p.label} type="button" onClick={() => sendMessage(null, p.text)} disabled={loading}>{p.label}</button>
             ))}
           </div>
 
@@ -939,10 +1093,7 @@ export default function App() {
             <main className="chat" ref={chatRef}>
               {isFreshSession && (
                 <div className="emptyState" aria-hidden="true">
-                  <div className="emptyOrb emptyOrbOne" />
-                  <div className="emptyOrb emptyOrbTwo" />
                   <div className="emptyStateInner">
-                    <div className="emptyStateIcon">✦</div>
                     <h3>Your learning session starts here</h3>
                     <p>Pick a prompt or ask a question to get personalized guidance.</p>
                   </div>
@@ -951,15 +1102,13 @@ export default function App() {
 
               {messages.map((m, i) => (
                 <div key={i} className={`msg ${m.role}`}>
-                  <div className="bubble">
-                    <ReactMarkdown>{m.content}</ReactMarkdown>
-                  </div>
+                  <div className="bubble"><ReactMarkdown>{m.content}</ReactMarkdown></div>
                 </div>
               ))}
 
               {loading && (
                 <div className="msg assistant">
-                  <div className="bubble typing" aria-live="polite" aria-label="Assistant is thinking">
+                  <div className="bubble typing" aria-live="polite">
                     <span className="typingDot" />
                     <span className="typingDot" />
                     <span className="typingDot" />
@@ -970,74 +1119,44 @@ export default function App() {
 
             <aside className="side">
               <h3>Quick actions</h3>
-
               <div className="actions">
-                <button
-                  type="button"
-                  onClick={() => setMode("Explain")}
-                  className={`modeBtn ${mode === "Explain" ? "active" : ""}`}
-                >
-                  Explain
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("Hint")}
-                  className={`modeBtn ${mode === "Hint" ? "active" : ""}`}
-                >
-                  Hint
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("Quiz")}
-                  className={`modeBtn ${mode === "Quiz" ? "active" : ""}`}
-                  disabled={!isProPlan}
-                >
-                  {isProPlan ? "Quiz" : "Quiz (Pro)"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("Mark")}
-                  className={`modeBtn ${mode === "Mark" ? "active" : ""}`}
-                  disabled={!isProPlan}
-                >
-                  {isProPlan ? "Mark" : "Mark (Pro)"}
-                </button>
+                <button type="button" onClick={() => setMode("Explain")} className={`modeBtn ${mode === "Explain" ? "active" : ""}`}>Explain</button>
+                <button type="button" onClick={() => setMode("Hint")} className={`modeBtn ${mode === "Hint" ? "active" : ""}`}>Hint</button>
+                <button type="button" onClick={() => setMode("Quiz")} className={`modeBtn ${mode === "Quiz" ? "active" : ""}`} disabled={!isProPlan}>{isProPlan ? "Quiz" : "Quiz (Pro)"}</button>
+                <button type="button" onClick={() => setMode("Mark")} className={`modeBtn ${mode === "Mark" ? "active" : ""}`} disabled={!isProPlan}>{isProPlan ? "Mark" : "Mark (Pro)"}</button>
               </div>
 
               <div className="tips">
-                <h4>Tip</h4>
-                <p>
-                  Paste your code and tell me what it should do vs what it does.
-                  I’ll guide you step-by-step.
-                </p>
-              </div>
-
-              <div className="meta">
-                <h4>Current settings</h4>
-                <p>
-                  <strong>Level:</strong> {level}
-                  <br />
-                  <strong>Topic:</strong> {topic}
-                  <br />
-                  <strong>Mode:</strong> {mode}
-                </p>
+                <h4>AI code evaluation</h4>
+                <textarea value={codeInput} onChange={(e) => setCodeInput(e.target.value)} placeholder="Paste student code here..." rows={8} />
+                <div className="inlineForm">
+                  <input value={codeLanguage} onChange={(e) => setCodeLanguage(e.target.value)} placeholder="Language" />
+                  <button type="button" className="modeBtn" onClick={handleEvaluateCode} disabled={codeEvalLoading}>{codeEvalLoading ? "Evaluating..." : "Evaluate code"}</button>
+                </div>
+                {codeEvalError && <p className="authError">{codeEvalError}</p>}
+                {codeEvalResult && (
+                  <div className="meta">
+                    <p><strong>Score:</strong> {codeEvalResult.score}/10</p>
+                    <p>{codeEvalResult.summary}</p>
+                    <p><strong>Improvements:</strong></p>
+                    <ul>
+                      {codeEvalResult.improvements?.map((item) => <li key={item}>{item}</li>)}
+                    </ul>
+                    <p><strong>Tips:</strong></p>
+                    <ul>
+                      {codeEvalResult.tips?.map((item) => <li key={item}>{item}</li>)}
+                    </ul>
+                  </div>
+                )}
               </div>
             </aside>
           </div>
-        </>
-      )}
 
-      {viewMode === "tutor" && (
-        <form className="composer" onSubmit={sendMessage}>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a CS question…"
-          />
-          <button type="submit" disabled={loading} className="sendBtn">
-            {loading ? "Sending..." : "Send"}
-          </button>
-        </form>
+          <form className="composer" onSubmit={sendMessage}>
+            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a CS question..." />
+            <button type="submit" disabled={loading} className="sendBtn">{loading ? "Sending..." : "Send"}</button>
+          </form>
+        </>
       )}
     </div>
   );

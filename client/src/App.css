@@ -172,8 +172,8 @@ button:disabled {
 }
 
 .workspaceTabs {
-  display: inline-grid;
-  grid-template-columns: 1fr 1fr;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
   margin: 10px 0 14px;
 }
@@ -239,11 +239,19 @@ button:disabled {
   grid-template-columns: 1fr 1fr;
 }
 
+.dashboardSectionTabs {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
 .dashboardCard {
   border: 1px solid #cfdbeb;
   border-radius: 12px;
   background: #ffffff;
   padding: 12px;
+  margin-top: 12px;
 }
 
 .dashboardCard h3 {
@@ -292,6 +300,69 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.inlineForm {
+  display: grid;
+  gap: 8px;
+}
+
+.inlineForm textarea,
+.inlineForm input,
+.inlineForm select,
+.tips textarea {
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  padding: 9px 12px;
+  min-height: 40px;
+  background: #fff;
+}
+
+.tips textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.simpleList {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.listRow,
+.listCol {
+  border: 1px solid #d6e1ef;
+  border-radius: 10px;
+  background: #f9fbff;
+  padding: 8px 10px;
+}
+
+.listRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.listRow select {
+  min-width: 120px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.tableWrap table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tableWrap th,
+.tableWrap td {
+  border-bottom: 1px solid #dbe5f2;
+  text-align: left;
+  padding: 8px;
+  font-size: 0.9rem;
 }
 
 .layout {
@@ -729,6 +800,34 @@ button:disabled {
 .authCard p {
   margin: 8px 0 0;
   color: var(--muted);
+}
+
+.demoCard {
+  margin-top: 12px;
+  border: 1px solid #d7e2f0;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 10px;
+}
+
+.demoCard h3 {
+  margin: 0;
+  font-family: "Sora", sans-serif;
+  font-size: 0.95rem;
+}
+
+.demoReply {
+  margin-top: 8px;
+  border: 1px solid #d2deec;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px;
+}
+
+.demoHint {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: #395c86;
 }
 
 .authHint {

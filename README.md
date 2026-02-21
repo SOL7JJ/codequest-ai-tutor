@@ -94,6 +94,20 @@ Chat messages are persisted in PostgreSQL (`chat_messages` table) per user.
 Progress endpoint:
 - `GET /api/progress/overview`
 
+Student productivity endpoints:
+- `GET /api/student/lessons`
+- `POST /api/student/lessons`
+- `PATCH /api/student/lessons/:lessonId`
+- `POST /api/student/quiz-attempts`
+- `GET /api/student/tasks`
+- `PATCH /api/student/tasks/:taskId`
+- `POST /api/code/evaluate`
+
+Teacher endpoints:
+- `POST /api/teacher/quizzes/generate`
+- `POST /api/teacher/tasks/assign`
+- `GET /api/teacher/results`
+
 The dashboard summarizes turns, topics, quizzes, marks, streak, and last-7-day activity from persisted chat turns.
 
 Tutor access tiers:
@@ -124,6 +138,7 @@ In `/Users/jamesjonathantossou-ayayi/Desktop/codequest-ai-tutor/server/.env`:
 - `RATE_LIMIT_WINDOW_MS`: limiter window size (default `60000`)
 - `RATE_LIMIT_MAX`: max requests per IP per window on `/api/tutor` (default `20`)
 - `FREE_TIER_DAILY_TURNS`: daily assistant-turn cap for free users (default `20`)
+- `TEACHER_EMAILS`: optional comma-separated allowlist for teacher signup role
 
 ## Smoke tests
 Run backend smoke tests:

@@ -12,6 +12,7 @@ dotenv.config({ quiet: true });
 const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 20000);
 const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60000);
 const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 20);
+const DEMO_RATE_LIMIT_MAX = Number(process.env.DEMO_RATE_LIMIT_MAX || 5);
 const MAX_OUTPUT_TOKENS = Number(process.env.MAX_OUTPUT_TOKENS || 350);
 const FREE_TIER_DAILY_TURNS = Number(process.env.FREE_TIER_DAILY_TURNS || 20);
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
@@ -19,6 +20,10 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 const APP_URL = process.env.APP_URL || "http://localhost:5173";
 const STRIPE_PRICE_ID_MONTHLY = process.env.STRIPE_PRICE_ID_MONTHLY || "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
+const TEACHER_EMAILS = (process.env.TEACHER_EMAILS || "")
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
@@ -124,7 +129,9 @@ function getClient() {
 }
 
 function buildToken(user) {
-  return jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign({ sub: user.id, email: user.email, role: user.role || "student" }, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN,
+  });
 }
 
 function requireAuth(req, res, next) {
@@ -153,12 +160,32 @@ function requireDatabase(res) {
 
 async function getUserById(userId) {
   const result = await pool.query(
-    `SELECT id, email, stripe_customer_id, subscription_id, subscription_status, subscription_current_period_end
+    `SELECT id, email, role, stripe_customer_id, subscription_id, subscription_status, subscription_current_period_end
      FROM users
      WHERE id = $1`,
     [userId]
   );
   return result.rows[0] || null;
+}
+
+function resolveRole(email, requestedRole) {
+  if (requestedRole !== "teacher") return "student";
+  if (!TEACHER_EMAILS.length) return "teacher";
+  return TEACHER_EMAILS.includes(email) ? "teacher" : "student";
+}
+
+async function requireTeacher(req, res, next) {
+  if (!requireDatabase(res)) return;
+  try {
+    const user = await getUserById(req.user.sub);
+    if (!user) return res.status(401).json({ error: "User not found" });
+    if (user.role !== "teacher") return res.status(403).json({ error: "Teacher access required" });
+    req.authUser = user;
+    return next();
+  } catch (err) {
+    console.error("Teacher auth error:", err);
+    return res.status(500).json({ error: "Failed to verify teacher access" });
+  }
 }
 
 function isSubscriptionActive(status) {
@@ -326,7 +353,76 @@ async function getTutorAccessContext(userId, mode, isStreaming) {
   };
 }
 
+function inferCodingTopics(code = "") {
+  const text = code.toLowerCase();
+  const topics = [];
+  if (/for\s*\(|while\s*\(|for\s+\w+\s+in\s+/.test(text)) topics.push("Loops");
+  if (/if\s*\(|elif\s|else\s*:|switch\s*\(/.test(text)) topics.push("Conditionals");
+  if (/function\s+\w+|def\s+\w+|=>/.test(text)) topics.push("Functions");
+  if (/class\s+\w+/.test(text)) topics.push("Object Oriented Programming");
+  if (/\b(array|list|dict|map|set)\b|\[.*\]|\{.*\}/.test(text)) topics.push("Data Structures");
+  if (/try\s*:|catch\s*\(|except\s+/.test(text)) topics.push("Error Handling");
+  return topics.slice(0, 5);
+}
+
+function evaluateCodeHeuristics(code = "", language = "general") {
+  const lines = code.split("\n");
+  const nonEmptyLines = lines.filter((line) => line.trim().length > 0);
+  const longLines = nonEmptyLines.filter((line) => line.length > 120).length;
+  const hasComments = /(#|\/\/|\/\*)/.test(code);
+  const hasConditionals = /\bif\b|\bswitch\b|\belif\b/.test(code);
+  const hasLoops = /\bfor\b|\bwhile\b/.test(code);
+  const hasFunctions = /\bfunction\b|\bdef\b|=>/.test(code);
+  const hasErrorHandling = /\btry\b|\bcatch\b|\bexcept\b/.test(code);
+
+  let score = 10;
+  if (nonEmptyLines.length < 3) score -= 2;
+  if (longLines > 0) score -= 1;
+  if (!hasComments) score -= 1;
+  if (!hasFunctions && nonEmptyLines.length > 12) score -= 1;
+  if (!hasConditionals && !hasLoops && nonEmptyLines.length > 8) score -= 1;
+  if (!hasErrorHandling && /input|fetch|read|parse|json|api/i.test(code)) score -= 1;
+  score = Math.max(1, Math.min(10, score));
+
+  const improvements = [];
+  if (!hasComments) improvements.push("Add short comments for key logic blocks.");
+  if (longLines > 0) improvements.push("Break long lines into smaller, readable statements.");
+  if (!hasFunctions && nonEmptyLines.length > 12) improvements.push("Extract repeated logic into functions.");
+  if (!hasErrorHandling && /input|fetch|read|parse|json|api/i.test(code)) {
+    improvements.push("Add error handling for external input and parsing.");
+  }
+  if (!improvements.length) improvements.push("Code structure is solid. Focus on testing edge cases.");
+
+  return {
+    score,
+    summary:
+      score >= 8
+        ? "Strong solution with good structure."
+        : score >= 5
+          ? "Good start. A few improvements will make it robust."
+          : "Core idea is present, but structure and reliability need work.",
+    improvements: improvements.slice(0, 4),
+    tips: [
+      "Test with normal, edge, and invalid inputs.",
+      "Use meaningful variable names that reveal intent.",
+      "Refactor duplicated code into helper functions.",
+    ],
+    topics: inferCodingTopics(code),
+    language,
+  };
+}
+
+function generateQuizTemplate({ topic = "Python", level = "KS3", numQuestions = 5 }) {
+  const count = Math.min(Math.max(Number(numQuestions) || 5, 1), 10);
+  return Array.from({ length: count }).map((_, index) => ({
+    id: index + 1,
+    question: `[${level}] ${topic} question ${index + 1}: Explain the output or behavior.`,
+    answerGuide: `Expected points: key concept, example, and common mistake to avoid for ${topic}.`,
+  }));
+}
+
 const tutorRateLimitState = new Map();
+const demoRateLimitState = new Map();
 
 function tutorRateLimit(req, res, next) {
   const key = req.user?.sub || req.ip || req.headers["x-forwarded-for"] || "unknown";
@@ -350,11 +446,38 @@ function tutorRateLimit(req, res, next) {
   return next();
 }
 
+function demoRateLimit(req, res, next) {
+  const key = req.ip || req.headers["x-forwarded-for"] || "unknown";
+  const now = Date.now();
+  const record = demoRateLimitState.get(key);
+
+  if (!record || now - record.windowStart >= RATE_LIMIT_WINDOW_MS) {
+    demoRateLimitState.set(key, { windowStart: now, count: 1 });
+    return next();
+  }
+
+  if (record.count >= DEMO_RATE_LIMIT_MAX) {
+    const retryAfterSeconds = Math.ceil((RATE_LIMIT_WINDOW_MS - (now - record.windowStart)) / 1000);
+    return res.status(429).json({
+      error: "Demo rate limit exceeded. Please sign up to continue.",
+      retryAfterSeconds,
+    });
+  }
+
+  record.count += 1;
+  return next();
+}
+
 const cleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [key, record] of tutorRateLimitState.entries()) {
     if (now - record.windowStart >= RATE_LIMIT_WINDOW_MS) {
       tutorRateLimitState.delete(key);
+    }
+  }
+  for (const [key, record] of demoRateLimitState.entries()) {
+    if (now - record.windowStart >= RATE_LIMIT_WINDOW_MS) {
+      demoRateLimitState.delete(key);
     }
   }
 }, RATE_LIMIT_WINDOW_MS);
@@ -364,13 +487,14 @@ cleanupTimer.unref();
 app.post("/api/auth/register", async (req, res) => {
   if (!requireDatabase(res)) return;
 
-  const { email, password } = req.body || {};
+  const { email, password, role: requestedRole } = req.body || {};
 
   if (!email || typeof email !== "string" || !password || typeof password !== "string") {
     return res.status(400).json({ error: "Email and password are required" });
   }
 
   const normalizedEmail = email.trim().toLowerCase();
+  const role = resolveRole(normalizedEmail, requestedRole);
   if (password.length < 6) {
     return res.status(400).json({ error: "Password must be at least 6 characters" });
   }
@@ -378,8 +502,8 @@ app.post("/api/auth/register", async (req, res) => {
   try {
     const passwordHash = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      "INSERT INTO users(email, password_hash) VALUES($1, $2) RETURNING id, email, subscription_status",
-      [normalizedEmail, passwordHash]
+      "INSERT INTO users(email, password_hash, role) VALUES($1, $2, $3) RETURNING id, email, role, subscription_status",
+      [normalizedEmail, passwordHash, role]
     );
 
     const user = result.rows[0];
@@ -408,7 +532,7 @@ app.post("/api/auth/login", async (req, res) => {
 
   try {
     const result = await pool.query(
-      "SELECT id, email, password_hash, subscription_status FROM users WHERE email = $1",
+      "SELECT id, email, role, password_hash, subscription_status FROM users WHERE email = $1",
       [normalizedEmail]
     );
 
@@ -423,7 +547,12 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    const user = { id: row.id, email: row.email, subscription_status: row.subscription_status };
+    const user = {
+      id: row.id,
+      email: row.email,
+      role: row.role || "student",
+      subscription_status: row.subscription_status,
+    };
     const token = buildToken(user);
 
     return res.status(200).json({ token, user });
@@ -447,6 +576,7 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
+        role: user.role || "student",
         subscription_status: user.subscription_status,
       },
     });
@@ -518,6 +648,43 @@ app.get("/api/chat/history", requireAuth, async (req, res) => {
   }
 });
 
+app.post("/api/demo/tutor", demoRateLimit, async (req, res) => {
+  try {
+    const { message } = req.body || {};
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({ error: "Missing 'message' string" });
+    }
+
+    const client = getClient();
+    if (!client) {
+      return res.status(200).json({
+        reply:
+          "Demo mode is available, but AI is not configured right now. Please sign up and try again shortly.",
+      });
+    }
+
+    const response = await client.responses.create({
+      model: "gpt-4o-mini",
+      max_output_tokens: 220,
+      input: [
+        {
+          role: "system",
+          content:
+            "You are a concise computer science tutor in demo mode. Keep response under 6 short lines and include one practical next step.",
+        },
+        { role: "user", content: message },
+      ],
+    });
+
+    return res.status(200).json({
+      reply: response.output_text || "I could not generate a demo response this time.",
+    });
+  } catch (err) {
+    console.error("Demo tutor error:", err);
+    return res.status(500).json({ error: "Failed to run demo question" });
+  }
+});
+
 app.get("/api/progress/overview", requireAuth, async (req, res) => {
   if (!requireDatabase(res)) return;
 
@@ -567,26 +734,326 @@ app.get("/api/progress/overview", requireAuth, async (req, res) => {
       });
     }
 
-    const quizzesTaken = modeCounts.get("Quiz") || 0;
+    const quizResult = await pool.query(
+      `SELECT topic, score, max_score, created_at
+       FROM quiz_attempts
+       WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [req.user.sub]
+    );
+
+    const lessonResult = await pool.query(
+      `SELECT topic, completed
+       FROM lessons
+       WHERE user_id = $1`,
+      [req.user.sub]
+    );
+
+    const codeEvalResult = await pool.query(
+      `SELECT topic, score, created_at
+       FROM code_evaluations
+       WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [req.user.sub]
+    );
+
+    const quizzesTaken = quizResult.rows.length;
     const marksRequested = modeCounts.get("Mark") || 0;
+    const averageQuizScore = quizResult.rows.length
+      ? Number(
+          (
+            quizResult.rows.reduce((acc, row) => acc + (Number(row.score || 0) / Math.max(Number(row.max_score || 1), 1)) * 100, 0) /
+            quizResult.rows.length
+          ).toFixed(1)
+        )
+      : 0;
+    const averageCodeScore = codeEvalResult.rows.length
+      ? Number(
+          (
+            codeEvalResult.rows.reduce((acc, row) => acc + Number(row.score || 0), 0) /
+            codeEvalResult.rows.length
+          ).toFixed(1)
+        )
+      : 0;
+
+    const lessonsCompleted = lessonResult.rows.filter((row) => row.completed).length;
+    const lessonsTotal = lessonResult.rows.length;
+
+    const completedTopicsSet = new Set(topicCounts.keys());
+    for (const row of lessonResult.rows) {
+      if (row.topic) completedTopicsSet.add(row.topic);
+    }
+    for (const row of quizResult.rows) {
+      if (row.topic) completedTopicsSet.add(row.topic);
+    }
+    for (const row of codeEvalResult.rows) {
+      if (row.topic) completedTopicsSet.add(row.topic);
+    }
+
     const lastActiveAt = turns.length ? turns[turns.length - 1].created_at : null;
 
     return res.status(200).json({
       summary: {
         totalTurns: turns.length,
-        topicsCovered: topicCounts.size,
+        topicsCovered: completedTopicsSet.size,
         quizzesTaken,
         marksRequested,
+        averageQuizScore,
+        averageCodeScore,
+        lessonsCompleted,
+        lessonsTotal,
         currentStreakDays,
         lastActiveAt,
       },
       topicBreakdown,
       modeBreakdown,
       dailyActivity: last7Days,
+      completedTopics: [...completedTopicsSet].sort(),
+      recentQuizScores: quizResult.rows.slice(0, 10).map((row) => ({
+        topic: row.topic || "General",
+        score: Number(row.score || 0),
+        maxScore: Number(row.max_score || 0),
+        created_at: row.created_at,
+      })),
     });
   } catch (err) {
     console.error("Progress overview error:", err);
     return res.status(500).json({ error: "Failed to fetch progress overview" });
+  }
+});
+
+app.get("/api/student/lessons", requireAuth, async (req, res) => {
+  if (!requireDatabase(res)) return;
+  try {
+    const result = await pool.query(
+      `SELECT id, title, topic, completed, created_at, completed_at
+       FROM lessons
+       WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [req.user.sub]
+    );
+    return res.status(200).json({ lessons: result.rows });
+  } catch (err) {
+    console.error("List lessons error:", err);
+    return res.status(500).json({ error: "Failed to list lessons" });
+  }
+});
+
+app.post("/api/student/lessons", requireAuth, async (req, res) => {
+  if (!requireDatabase(res)) return;
+  const { title, topic } = req.body || {};
+  if (!title || typeof title !== "string") {
+    return res.status(400).json({ error: "Lesson title is required" });
+  }
+  try {
+    const result = await pool.query(
+      `INSERT INTO lessons(user_id, title, topic)
+       VALUES($1, $2, $3)
+       RETURNING id, title, topic, completed, created_at, completed_at`,
+      [req.user.sub, title.trim(), (topic || "").trim() || null]
+    );
+    return res.status(201).json({ lesson: result.rows[0] });
+  } catch (err) {
+    console.error("Create lesson error:", err);
+    return res.status(500).json({ error: "Failed to create lesson" });
+  }
+});
+
+app.patch("/api/student/lessons/:lessonId", requireAuth, async (req, res) => {
+  if (!requireDatabase(res)) return;
+  const lessonId = Number(req.params.lessonId);
+  const { completed } = req.body || {};
+  if (!Number.isInteger(lessonId) || typeof completed !== "boolean") {
+    return res.status(400).json({ error: "Valid lesson id and completed flag are required" });
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE lessons
+       SET completed = $1,
+           completed_at = CASE WHEN $1 THEN NOW() ELSE NULL END
+       WHERE id = $2 AND user_id = $3
+       RETURNING id, title, topic, completed, created_at, completed_at`,
+      [completed, lessonId, req.user.sub]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "Lesson not found" });
+    return res.status(200).json({ lesson: result.rows[0] });
+  } catch (err) {
+    console.error("Update lesson error:", err);
+    return res.status(500).json({ error: "Failed to update lesson" });
+  }
+});
+
+app.post("/api/student/quiz-attempts", requireAuth, async (req, res) => {
+  if (!requireDatabase(res)) return;
+  const { topic = "General", score, maxScore = 10 } = req.body || {};
+  if (!Number.isFinite(Number(score)) || !Number.isFinite(Number(maxScore))) {
+    return res.status(400).json({ error: "score and maxScore are required numbers" });
+  }
+  try {
+    const result = await pool.query(
+      `INSERT INTO quiz_attempts(user_id, topic, score, max_score)
+       VALUES($1, $2, $3, $4)
+       RETURNING id, topic, score, max_score, created_at`,
+      [req.user.sub, String(topic), Number(score), Number(maxScore)]
+    );
+    return res.status(201).json({ attempt: result.rows[0] });
+  } catch (err) {
+    console.error("Quiz attempt error:", err);
+    return res.status(500).json({ error: "Failed to store quiz attempt" });
+  }
+});
+
+app.get("/api/student/tasks", requireAuth, async (req, res) => {
+  if (!requireDatabase(res)) return;
+  try {
+    const result = await pool.query(
+      `SELECT id, title, topic, description, due_date, status, created_at
+       FROM tasks
+       WHERE student_id = $1
+       ORDER BY created_at DESC`,
+      [req.user.sub]
+    );
+    return res.status(200).json({ tasks: result.rows });
+  } catch (err) {
+    console.error("Student tasks error:", err);
+    return res.status(500).json({ error: "Failed to list tasks" });
+  }
+});
+
+app.patch("/api/student/tasks/:taskId", requireAuth, async (req, res) => {
+  if (!requireDatabase(res)) return;
+  const taskId = Number(req.params.taskId);
+  const { status } = req.body || {};
+  if (!Number.isInteger(taskId) || !["pending", "in_progress", "completed"].includes(status)) {
+    return res.status(400).json({ error: "Valid task id and status are required" });
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE tasks
+       SET status = $1,
+           completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE NULL END
+       WHERE id = $2 AND student_id = $3
+       RETURNING id, title, topic, description, due_date, status, created_at`,
+      [status, taskId, req.user.sub]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "Task not found" });
+    return res.status(200).json({ task: result.rows[0] });
+  } catch (err) {
+    console.error("Update task error:", err);
+    return res.status(500).json({ error: "Failed to update task" });
+  }
+});
+
+app.post("/api/code/evaluate", requireAuth, async (req, res) => {
+  if (!requireDatabase(res)) return;
+  const { code, language = "general", topic = "General" } = req.body || {};
+  if (!code || typeof code !== "string") {
+    return res.status(400).json({ error: "Code is required for evaluation" });
+  }
+
+  try {
+    const evaluation = evaluateCodeHeuristics(code, language);
+    await pool.query(
+      `INSERT INTO code_evaluations(user_id, topic, language, score, summary, improvements, tips)
+       VALUES($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)`,
+      [
+        req.user.sub,
+        String(topic || "General"),
+        String(language || "general"),
+        Number(evaluation.score),
+        evaluation.summary,
+        JSON.stringify(evaluation.improvements),
+        JSON.stringify(evaluation.tips),
+      ]
+    );
+    return res.status(200).json({ evaluation });
+  } catch (err) {
+    console.error("Code evaluation error:", err);
+    return res.status(500).json({ error: "Failed to evaluate code" });
+  }
+});
+
+app.post("/api/teacher/quizzes/generate", requireAuth, requireTeacher, async (req, res) => {
+  if (!requireDatabase(res)) return;
+  const { topic = "Python", level = "KS3", numQuestions = 5, title } = req.body || {};
+  try {
+    const questions = generateQuizTemplate({ topic, level, numQuestions });
+    const result = await pool.query(
+      `INSERT INTO teacher_quizzes(teacher_id, title, topic, level, questions)
+       VALUES($1, $2, $3, $4, $5::jsonb)
+       RETURNING id, title, topic, level, questions, created_at`,
+      [req.authUser.id, title?.trim() || `${topic} Practice Quiz`, topic, level, JSON.stringify(questions)]
+    );
+    return res.status(201).json({ quiz: result.rows[0] });
+  } catch (err) {
+    console.error("Generate teacher quiz error:", err);
+    return res.status(500).json({ error: "Failed to generate teacher quiz" });
+  }
+});
+
+app.post("/api/teacher/tasks/assign", requireAuth, requireTeacher, async (req, res) => {
+  if (!requireDatabase(res)) return;
+  const { studentEmail, title, description = "", topic = "General", dueDate = null } = req.body || {};
+  if (!studentEmail || !title) {
+    return res.status(400).json({ error: "studentEmail and title are required" });
+  }
+  try {
+    const studentResult = await pool.query(
+      `SELECT id, email FROM users WHERE email = $1`,
+      [String(studentEmail).trim().toLowerCase()]
+    );
+    if (!studentResult.rows.length) {
+      return res.status(404).json({ error: "Student not found for that email" });
+    }
+
+    const taskResult = await pool.query(
+      `INSERT INTO tasks(teacher_id, student_id, title, topic, description, due_date)
+       VALUES($1, $2, $3, $4, $5, $6)
+       RETURNING id, title, topic, description, due_date, status, created_at`,
+      [
+        req.authUser.id,
+        studentResult.rows[0].id,
+        String(title).trim(),
+        String(topic),
+        String(description),
+        dueDate || null,
+      ]
+    );
+
+    return res.status(201).json({
+      task: taskResult.rows[0],
+      student: { id: studentResult.rows[0].id, email: studentResult.rows[0].email },
+    });
+  } catch (err) {
+    console.error("Assign task error:", err);
+    return res.status(500).json({ error: "Failed to assign task" });
+  }
+});
+
+app.get("/api/teacher/results", requireAuth, requireTeacher, async (req, res) => {
+  if (!requireDatabase(res)) return;
+  try {
+    const result = await pool.query(
+      `SELECT
+         u.id AS student_id,
+         u.email AS student_email,
+         COUNT(DISTINCT t.id)::INT AS assigned_tasks,
+         COUNT(DISTINCT CASE WHEN t.status = 'completed' THEN t.id END)::INT AS completed_tasks,
+         COALESCE(ROUND(AVG(qa.score / NULLIF(qa.max_score, 0) * 100)::numeric, 1), 0) AS avg_quiz_percent,
+         COALESCE(ROUND(AVG(ce.score)::numeric, 1), 0) AS avg_code_score
+       FROM users u
+       LEFT JOIN tasks t ON t.student_id = u.id AND t.teacher_id = $1
+       LEFT JOIN quiz_attempts qa ON qa.user_id = u.id
+       LEFT JOIN code_evaluations ce ON ce.user_id = u.id
+       WHERE u.role = 'student'
+       GROUP BY u.id, u.email
+       ORDER BY u.email ASC`,
+      [req.authUser.id]
+    );
+    return res.status(200).json({ students: result.rows });
+  } catch (err) {
+    console.error("Teacher results error:", err);
+    return res.status(500).json({ error: "Failed to fetch teacher results" });
   }
 });
 
@@ -817,6 +1284,7 @@ async function ensureSchema() {
       id BIGSERIAL PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'student',
       stripe_customer_id TEXT UNIQUE,
       subscription_id TEXT,
       subscription_status TEXT NOT NULL DEFAULT 'inactive',
@@ -837,6 +1305,7 @@ async function ensureSchema() {
   await pool.query(
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
   );
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'student'");
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chat_messages (
@@ -854,6 +1323,78 @@ async function ensureSchema() {
   await pool.query(
     "CREATE INDEX IF NOT EXISTS idx_chat_messages_user_created_at ON chat_messages(user_id, created_at DESC)"
   );
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS lessons (
+      id BIGSERIAL PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      topic TEXT,
+      completed BOOLEAN NOT NULL DEFAULT FALSE,
+      completed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS quiz_attempts (
+      id BIGSERIAL PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      topic TEXT,
+      score NUMERIC NOT NULL,
+      max_score NUMERIC NOT NULL DEFAULT 10,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS code_evaluations (
+      id BIGSERIAL PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      topic TEXT,
+      language TEXT,
+      score NUMERIC NOT NULL,
+      summary TEXT,
+      improvements JSONB NOT NULL DEFAULT '[]'::jsonb,
+      tips JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS teacher_quizzes (
+      id BIGSERIAL PRIMARY KEY,
+      teacher_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      topic TEXT,
+      level TEXT,
+      questions JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id BIGSERIAL PRIMARY KEY,
+      teacher_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      student_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      topic TEXT,
+      description TEXT,
+      due_date DATE,
+      status TEXT NOT NULL DEFAULT 'pending',
+      completed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_lessons_user ON lessons(user_id, created_at DESC)");
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user ON quiz_attempts(user_id, created_at DESC)");
+  await pool.query(
+    "CREATE INDEX IF NOT EXISTS idx_code_evaluations_user ON code_evaluations(user_id, created_at DESC)"
+  );
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_tasks_student ON tasks(student_id, created_at DESC)");
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_tasks_teacher ON tasks(teacher_id, created_at DESC)");
 }
 
 async function start() {
