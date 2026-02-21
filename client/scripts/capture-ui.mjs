@@ -39,14 +39,14 @@ async function captureScenario(browser, {
     await page.waitForTimeout(waitMs);
 
     const homePath = path.join(outputDir, `${name}-home.png`);
-    await page.screenshot({ path: homePath, fullPage: true });
+    await page.screenshot({ path: homePath, fullPage: false });
 
     const input = page.locator('input[placeholder="Ask a CS question…"]');
     if (await input.count()) {
       await input.first().fill(samplePrompt);
       await page.waitForTimeout(150);
       const composerPath = path.join(outputDir, `${name}-composer.png`);
-      await page.screenshot({ path: composerPath, fullPage: true });
+      await page.screenshot({ path: composerPath, fullPage: false });
     }
   } finally {
     await context.close();

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
 
@@ -18,6 +18,7 @@ export default function App() {
     },
   ]);
   const [loading, setLoading] = useState(false);
+  const chatRef = useRef(null);
 
   const starterPrompts = useMemo(
     () => [
@@ -41,22 +42,29 @@ export default function App() {
     const text = (forcedText ?? input).trim();
     if (!text || loading) return;
 
-    setMessages((m) => [...m, { role: "user", content: text }]);
+    setMessages((m) => [...m, { role: "user", content: text }, { role: "assistant", content: "" }]);
     setInput("");
     setLoading(true);
 
-    try {
-      // IMPORTANT: make sure your backend route is POST /api/tutor
-      // If your backend route is POST /api/chat instead, change `/api/tutor` to `/api/chat`.
+    const setAssistantContent = (content) => {
+      setMessages((m) => {
+        const next = [...m];
+        const last = next[next.length - 1];
+        if (!last || last.role !== "assistant") return m;
+        next[next.length - 1] = { ...last, content };
+        return next;
+      });
+    };
+
+    const fallbackToNonStream = async () => {
       const res = await fetch(`${API_BASE}/api/tutor`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, level, topic, mode }),
       });
 
-      const rawText = await res.text(); // read as text first
+      const rawText = await res.text();
       let data = null;
-
       try {
         data = JSON.parse(rawText);
       } catch {
@@ -64,16 +72,7 @@ export default function App() {
       }
 
       if (!res.ok) {
-        setMessages((m) => [
-          ...m,
-          {
-            role: "assistant",
-            content:
-              `API error (${res.status}). ` +
-              (data?.error ? `\n${data.error}` : rawText || "No response body."),
-          },
-        ]);
-        return;
+        throw new Error(data?.error || rawText || `API error (${res.status})`);
       }
 
       const reply =
@@ -81,28 +80,95 @@ export default function App() {
         data?.message ??
         data?.content ??
         data?.response ??
-        (typeof data === "string" ? data : null);
+        (typeof data === "string" ? data : "");
 
-      setMessages((m) => [
-        ...m,
-        {
-          role: "assistant",
-          content: reply || "I got a response but it had no reply field.",
-        },
-      ]);
+      setAssistantContent(reply || "I got a response but it had no reply field.");
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/api/tutor/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, level, topic, mode }),
+      });
+
+      if (!res.ok) {
+        await fallbackToNonStream();
+        return;
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        throw new Error("No response stream body");
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let streamedContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        let delimiterIndex = buffer.indexOf("\n\n");
+
+        while (delimiterIndex !== -1) {
+          const eventBlock = buffer.slice(0, delimiterIndex);
+          buffer = buffer.slice(delimiterIndex + 2);
+          delimiterIndex = buffer.indexOf("\n\n");
+
+          const dataLine = eventBlock
+            .split("\n")
+            .find((line) => line.startsWith("data: "));
+
+          if (!dataLine) continue;
+
+          let payload = null;
+          try {
+            payload = JSON.parse(dataLine.slice(6));
+          } catch {
+            continue;
+          }
+
+          if (payload?.error) {
+            throw new Error(payload.error);
+          }
+
+          if (typeof payload?.delta === "string" && payload.delta.length) {
+            streamedContent += payload.delta;
+            setAssistantContent(streamedContent);
+          }
+        }
+      }
+
+      if (!streamedContent.trim()) {
+        setAssistantContent("I got a response but it had no reply text.");
+      }
     } catch {
-      setMessages((m) => [
-        ...m,
-        {
-          role: "assistant",
-          content:
-            "Error calling tutor API. Check backend is running, CORS is enabled, and the endpoint exists.",
-        },
-      ]);
+      try {
+        await fallbackToNonStream();
+      } catch {
+        setMessages((m) => [
+          ...m.slice(0, -1),
+          {
+            role: "assistant",
+            content:
+              "Error calling tutor API. Check backend is running, CORS is enabled, and the endpoint exists.",
+          },
+        ]);
+      }
     } finally {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!chatRef.current) return;
+    chatRef.current.scrollTop = chatRef.current.scrollHeight;
+  }, [messages, loading]);
+
+  const isFreshSession = messages.length === 1 && messages[0]?.role === "assistant";
 
   return (
     <div className="wrap">
@@ -112,6 +178,10 @@ export default function App() {
           <p className="subtitle">
             Learn Computer Science with an AI tutor that explains step-by-step.
           </p>
+          <div className="badges">
+            <span className="badge">Adaptive tutor</span>
+            <span className="badge">Session turns: {Math.max(messages.length - 1, 0)}</span>
+          </div>
         </div>
 
         <div className="controls">
@@ -156,7 +226,19 @@ export default function App() {
 
       {/* Main 2-column layout */}
       <div className="layout">
-        <main className="chat">
+        <main className="chat" ref={chatRef}>
+          {isFreshSession && (
+            <div className="emptyState" aria-hidden="true">
+              <div className="emptyOrb emptyOrbOne" />
+              <div className="emptyOrb emptyOrbTwo" />
+              <div className="emptyStateInner">
+                <div className="emptyStateIcon">✦</div>
+                <h3>Your learning session starts here</h3>
+                <p>Pick a prompt or ask a question to get personalized guidance.</p>
+              </div>
+            </div>
+          )}
+
           {messages.map((m, i) => (
             <div key={i} className={`msg ${m.role}`}>
               <div className="bubble">
@@ -167,7 +249,11 @@ export default function App() {
 
           {loading && (
             <div className="msg assistant">
-              <div className="bubble">Thinking…</div>
+              <div className="bubble typing" aria-live="polite" aria-label="Assistant is thinking">
+                <span className="typingDot" />
+                <span className="typingDot" />
+                <span className="typingDot" />
+              </div>
             </div>
           )}
         </main>
@@ -177,16 +263,32 @@ export default function App() {
           <h3>Quick actions</h3>
 
           <div className="actions">
-            <button type="button" onClick={() => setMode("Explain")}>
+            <button
+              type="button"
+              onClick={() => setMode("Explain")}
+              className={`modeBtn ${mode === "Explain" ? "active" : ""}`}
+            >
               Explain
             </button>
-            <button type="button" onClick={() => setMode("Hint")}>
+            <button
+              type="button"
+              onClick={() => setMode("Hint")}
+              className={`modeBtn ${mode === "Hint" ? "active" : ""}`}
+            >
               Hint
             </button>
-            <button type="button" onClick={() => setMode("Quiz")}>
+            <button
+              type="button"
+              onClick={() => setMode("Quiz")}
+              className={`modeBtn ${mode === "Quiz" ? "active" : ""}`}
+            >
               Quiz
             </button>
-            <button type="button" onClick={() => setMode("Mark")}>
+            <button
+              type="button"
+              onClick={() => setMode("Mark")}
+              className={`modeBtn ${mode === "Mark" ? "active" : ""}`}
+            >
               Mark
             </button>
           </div>
@@ -219,7 +321,7 @@ export default function App() {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask a CS question…"
         />
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={loading} className="sendBtn">
           {loading ? "Sending..." : "Send"}
         </button>
       </form>
