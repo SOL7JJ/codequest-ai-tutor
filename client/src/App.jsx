@@ -307,9 +307,9 @@ export default function App() {
   if (authChecking) {
     return (
       <div className="authShell">
-        <section className="authCard">
+        <section className="authCard authLoadingCard">
           <h1>CodeQuest AI Tutor</h1>
-          <p>Checking session...</p>
+          <p>Preparing your learning workspace...</p>
         </section>
       </div>
     );
@@ -318,50 +318,104 @@ export default function App() {
   if (!user) {
     return (
       <div className="authShell">
-        <section className="authCard">
-          <h1>CodeQuest AI Tutor</h1>
-          <p>Sign in to continue your personalized learning session.</p>
+        <main className="landing">
+          <header className="landingTop">
+            <div className="landingBrand">
+              <span className="landingLogo">CQ</span>
+              <span>CodeQuest AI Tutor</span>
+            </div>
+            <span className="landingTag">Built for KS3 · GCSE · A-Level</span>
+          </header>
 
-          <div className="authModeRow">
-            <button
-              type="button"
-              className={`modeBtn ${authMode === "login" ? "active" : ""}`}
-              onClick={() => setAuthMode("login")}
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              className={`modeBtn ${authMode === "signup" ? "active" : ""}`}
-              onClick={() => setAuthMode("signup")}
-            >
-              Sign Up
-            </button>
-          </div>
+          <section className="landingHero">
+            <div className="landingCopy">
+              <p className="heroKicker">AI-Powered Learning Platform</p>
+              <h1>Master Computer Science with structured, exam-ready coaching</h1>
+              <p className="heroText">
+                Get instant explanations, adaptive hints, targeted quizzes, and clear mark-scheme
+                feedback in one focused workspace.
+              </p>
 
-          <form className="authForm" onSubmit={handleEmailAuth}>
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password (min 6 chars)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
-            <button type="submit" className="sendBtn" disabled={authLoading}>
-              {authLoading ? "Please wait..." : authMode === "signup" ? "Create account" : "Login"}
-            </button>
-          </form>
+              <div className="heroStats">
+                <article>
+                  <strong>4</strong>
+                  <span>Learning modes</span>
+                </article>
+                <article>
+                  <strong>24/7</strong>
+                  <span>On-demand support</span>
+                </article>
+                <article>
+                  <strong>Step-by-step</strong>
+                  <span>Exam-style guidance</span>
+                </article>
+              </div>
 
-          {authError && <p className="authError">{authError}</p>}
-        </section>
+              <div className="trustStrip">
+                <span>Explain</span>
+                <span>Hint</span>
+                <span>Quiz</span>
+                <span>Mark</span>
+              </div>
+
+              <div className="heroPanels">
+                <article>
+                  <h3>Adaptive tutoring</h3>
+                  <p>Responses are tailored by level, topic, and your current learning mode.</p>
+                </article>
+                <article>
+                  <h3>Exam confidence</h3>
+                  <p>Practice with progressively harder tasks and focused improvement feedback.</p>
+                </article>
+              </div>
+            </div>
+
+            <section className="authCard">
+              <h2>Start your learning session</h2>
+              <p>Login or create an account to access your personalized tutor.</p>
+
+              <div className="authModeRow">
+                <button
+                  type="button"
+                  className={`modeBtn ${authMode === "login" ? "active" : ""}`}
+                  onClick={() => setAuthMode("login")}
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  className={`modeBtn ${authMode === "signup" ? "active" : ""}`}
+                  onClick={() => setAuthMode("signup")}
+                >
+                  Sign Up
+                </button>
+              </div>
+
+              <form className="authForm" onSubmit={handleEmailAuth}>
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Password (min 6 chars)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+                <button type="submit" className="sendBtn" disabled={authLoading}>
+                  {authLoading ? "Please wait..." : authMode === "signup" ? "Create account" : "Login"}
+                </button>
+              </form>
+
+              {authError && <p className="authError">{authError}</p>}
+            </section>
+          </section>
+        </main>
       </div>
     );
   }

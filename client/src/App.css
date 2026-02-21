@@ -427,24 +427,168 @@ button:disabled {
 .authShell {
   min-height: 100vh;
   width: 100%;
-  display: grid;
-  place-items: center;
-  padding: 20px;
+  padding: 24px;
+  background:
+    radial-gradient(900px 420px at -8% -12%, rgba(138, 188, 252, 0.45) 0%, rgba(138, 188, 252, 0) 60%),
+    radial-gradient(920px 430px at 108% 4%, rgba(130, 224, 202, 0.3) 0%, rgba(130, 224, 202, 0) 62%),
+    linear-gradient(180deg, #eef3fa 0%, #f7fafe 100%);
 }
 
+.landing {
+  width: min(1220px, 100%);
+  margin: 0 auto;
+}
+
+.landingTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.landingBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: #19365f;
+}
+
+.landingLogo {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: linear-gradient(160deg, #2f69b6 0%, #184b8c 100%);
+  color: #f8fbff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.landingTag {
+  border: 1px solid #c8d5e6;
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #39577e;
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+
+.landingHero {
+  display: grid;
+  grid-template-columns: 1.2fr 0.88fr;
+  gap: 18px;
+}
+
+.landingCopy,
 .authCard {
-  width: min(460px, 100%);
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid var(--line);
   border-radius: 18px;
   box-shadow: var(--shadow);
-  padding: 20px;
+  padding: 22px;
 }
 
-.authCard h1 {
+.heroKicker {
+  margin: 0;
+  color: #376090;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.74rem;
+}
+
+.landingCopy h1 {
+  margin: 9px 0 0;
+  font-family: "Sora", sans-serif;
+  font-size: clamp(1.7rem, 2.6vw, 2.55rem);
+  letter-spacing: -0.02em;
+  max-width: 14ch;
+}
+
+.heroText {
+  margin: 12px 0 0;
+  color: #4c617f;
+  max-width: 52ch;
+  line-height: 1.45;
+}
+
+.heroStats {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.heroStats article {
+  border: 1px solid #d3deeb;
+  border-radius: 12px;
+  background: #fbfdff;
+  padding: 10px;
+}
+
+.heroStats strong {
+  display: block;
+  font-family: "Sora", sans-serif;
+  color: #1f446f;
+  font-size: 1rem;
+}
+
+.heroStats span {
+  font-size: 0.86rem;
+  color: #5a7090;
+}
+
+.trustStrip {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.trustStrip span {
+  border-radius: 999px;
+  border: 1px solid #c8d7ea;
+  padding: 6px 11px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #2c507d;
+  background: #f4f8fd;
+}
+
+.heroPanels {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.heroPanels article {
+  border: 1px solid #d5dfee;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fbfcff;
+}
+
+.heroPanels h3 {
   margin: 0;
   font-family: "Sora", sans-serif;
-  font-size: 1.7rem;
+  font-size: 0.94rem;
+}
+
+.heroPanels p {
+  margin: 6px 0 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.authCard h2 {
+  margin: 0;
+  font-family: "Sora", sans-serif;
+  letter-spacing: -0.01em;
 }
 
 .authCard p {
@@ -527,6 +671,14 @@ button:disabled {
 }
 
 @media (max-width: 960px) {
+  .landingHero {
+    grid-template-columns: 1fr;
+  }
+
+  .heroPanels {
+    grid-template-columns: 1fr;
+  }
+
   .layout {
     grid-template-columns: 1fr;
   }
@@ -537,6 +689,20 @@ button:disabled {
 }
 
 @media (max-width: 768px) {
+  .authShell {
+    padding: 14px;
+  }
+
+  .landingTop {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .heroStats {
+    grid-template-columns: 1fr;
+  }
+
   .wrap {
     padding: 14px 12px 12px;
   }
