@@ -7,6 +7,10 @@ const API_BASE =
 
 const TOKEN_KEY = "codequest_auth_token";
 
+function isSubscriptionActive(status) {
+  return status === "active" || status === "trialing";
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
@@ -15,6 +19,12 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+
+  const [billingStatus, setBillingStatus] = useState("inactive");
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingActionLoading, setBillingActionLoading] = useState(false);
+  const [billingError, setBillingError] = useState("");
+  const [checkoutNotice, setCheckoutNotice] = useState("");
 
   const [level, setLevel] = useState("KS3");
   const [topic, setTopic] = useState("Python");
@@ -76,6 +86,34 @@ export default function App() {
     return { res, data, rawText };
   }, [getToken]);
 
+  const fetchBillingStatus = useCallback(async () => {
+    if (!user) return;
+
+    setBillingLoading(true);
+    setBillingError("");
+
+    try {
+      const { res, data, rawText } = await fetchJson("/api/billing/status", { method: "GET" });
+
+      if (res.status === 401) {
+        localStorage.removeItem(TOKEN_KEY);
+        setUser(null);
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error(data?.error || rawText || "Failed to load billing status");
+      }
+
+      setBillingStatus(data?.billing?.status || "inactive");
+    } catch (err) {
+      setBillingStatus("inactive");
+      setBillingError(err?.message || "Failed to load billing status");
+    } finally {
+      setBillingLoading(false);
+    }
+  }, [fetchJson, user]);
+
   async function handleEmailAuth(e) {
     if (e?.preventDefault) e.preventDefault();
 
@@ -111,6 +149,9 @@ export default function App() {
   async function handleSignOut() {
     localStorage.removeItem(TOKEN_KEY);
     setUser(null);
+    setBillingStatus("inactive");
+    setBillingError("");
+    setCheckoutNotice("");
     setMessages([
       {
         role: "assistant",
@@ -118,6 +159,52 @@ export default function App() {
           "👋 Hi! I'm your AI Tutor.\n\nI can:\n• Explain topics step-by-step\n• Help you debug code\n• Give hints (not just answers)\n• Create practice questions\n\nWhat are you working on today?",
       },
     ]);
+  }
+
+  async function handleStartSubscription() {
+    setBillingActionLoading(true);
+    setBillingError("");
+    try {
+      const { res, data, rawText } = await fetchJson("/api/billing/create-checkout-session", {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        throw new Error(data?.error || rawText || `Failed to create checkout (${res.status})`);
+      }
+
+      if (!data?.url) {
+        throw new Error("No checkout URL returned from server");
+      }
+
+      window.location.href = data.url;
+    } catch (err) {
+      setBillingError(err?.message || "Failed to start subscription checkout");
+      setBillingActionLoading(false);
+    }
+  }
+
+  async function handleManageBilling() {
+    setBillingActionLoading(true);
+    setBillingError("");
+    try {
+      const { res, data, rawText } = await fetchJson("/api/billing/create-portal-session", {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        throw new Error(data?.error || rawText || `Failed to open billing portal (${res.status})`);
+      }
+
+      if (!data?.url) {
+        throw new Error("No billing portal URL returned from server");
+      }
+
+      window.location.href = data.url;
+    } catch (err) {
+      setBillingError(err?.message || "Failed to open billing portal");
+      setBillingActionLoading(false);
+    }
   }
 
   async function sendMessage(e, forcedText) {
@@ -161,6 +248,11 @@ export default function App() {
         throw new Error("Session expired. Please log in again.");
       }
 
+      if (res.status === 402) {
+        setBillingStatus(data?.billing?.status || "inactive");
+        throw new Error("Active subscription required. Please subscribe to continue.");
+      }
+
       if (!res.ok) {
         throw new Error(data?.error || rawText || `API error (${res.status})`);
       }
@@ -190,6 +282,18 @@ export default function App() {
         localStorage.removeItem(TOKEN_KEY);
         setUser(null);
         throw new Error("Session expired. Please log in again.");
+      }
+
+      if (res.status === 402) {
+        const rawText = await res.text();
+        let data = null;
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          // noop
+        }
+        setBillingStatus(data?.billing?.status || "inactive");
+        throw new Error("Active subscription required. Please subscribe to continue.");
       }
 
       if (!res.ok) {
@@ -296,6 +400,24 @@ export default function App() {
       mounted = false;
     };
   }, [fetchJson, getToken]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchBillingStatus();
+  }, [user, fetchBillingStatus]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      setCheckoutNotice("Subscription activated successfully. Welcome to CodeQuest Pro.");
+      fetchBillingStatus();
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    if (params.get("checkout") === "cancel") {
+      setCheckoutNotice("Checkout canceled. You can subscribe any time.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [fetchBillingStatus]);
 
   useEffect(() => {
     if (!chatRef.current) return;
@@ -420,6 +542,52 @@ export default function App() {
     );
   }
 
+  if (billingLoading) {
+    return (
+      <div className="authShell">
+        <section className="authCard authLoadingCard">
+          <h1>Checking your plan</h1>
+          <p>Loading billing status...</p>
+        </section>
+      </div>
+    );
+  }
+
+  if (!isSubscriptionActive(billingStatus)) {
+    return (
+      <div className="authShell">
+        <section className="paywallCard">
+          <h1>Unlock CodeQuest Pro</h1>
+          <p>Get unlimited AI tutoring, quizzes, and exam-style feedback with a monthly subscription.</p>
+
+          {checkoutNotice && <p className="paywallNotice">{checkoutNotice}</p>}
+
+          <div className="planBox">
+            <div>
+              <h3>Monthly Plan</h3>
+              <p>Full access to Explain, Hint, Quiz, Mark, and streaming responses.</p>
+            </div>
+            <span className="planBadge">Stripe Billing</span>
+          </div>
+
+          <div className="paywallActions">
+            <button className="sendBtn" type="button" onClick={handleStartSubscription} disabled={billingActionLoading}>
+              {billingActionLoading ? "Redirecting..." : "Subscribe monthly"}
+            </button>
+            <button className="googleBtn" type="button" onClick={handleManageBilling} disabled={billingActionLoading}>
+              Manage billing
+            </button>
+            <button className="modeBtn" type="button" onClick={handleSignOut}>
+              Log out
+            </button>
+          </div>
+
+          {billingError && <p className="authError">{billingError}</p>}
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="wrap">
       <header className="top">
@@ -429,9 +597,12 @@ export default function App() {
             Learn Computer Science with an AI tutor that explains step-by-step.
           </p>
           <div className="badges">
-            <span className="badge">Adaptive tutor</span>
+            <span className="badge">Pro</span>
             <span className="badge">Session turns: {Math.max(messages.length - 1, 0)}</span>
             <span className="badge">{user.email || "Signed in user"}</span>
+            <button type="button" className="badge signOutBtn" onClick={handleManageBilling}>
+              Billing
+            </button>
             <button type="button" className="badge signOutBtn" onClick={handleSignOut}>
               Log out
             </button>
@@ -462,6 +633,8 @@ export default function App() {
           </select>
         </div>
       </header>
+
+      {checkoutNotice && <p className="paywallNotice inlineNotice">{checkoutNotice}</p>}
 
       <div className="starters">
         <span className="startersLabel">Try:</span>

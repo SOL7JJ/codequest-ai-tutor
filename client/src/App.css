@@ -646,6 +646,81 @@ button:disabled {
   font-size: 0.92rem;
 }
 
+.paywallCard {
+  width: min(620px, 100%);
+  margin: 40px auto 0;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 22px;
+}
+
+.paywallCard h1 {
+  margin: 0;
+  font-family: "Sora", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.paywallCard > p {
+  margin: 9px 0 0;
+  color: var(--muted);
+}
+
+.planBox {
+  margin-top: 14px;
+  border: 1px solid #cddaea;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fbff;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.planBox h3 {
+  margin: 0;
+  font-family: "Sora", sans-serif;
+  font-size: 1rem;
+}
+
+.planBox p {
+  margin: 6px 0 0;
+  color: #4f6483;
+  font-size: 0.9rem;
+}
+
+.planBadge {
+  align-self: flex-start;
+  border-radius: 999px;
+  border: 1px solid #c3d5ea;
+  background: #fff;
+  padding: 6px 10px;
+  color: #2e537f;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.paywallActions {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.paywallNotice {
+  margin-top: 12px;
+  border: 1px solid #b5dbc3;
+  background: #ecfbf1;
+  color: #185534;
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 0.92rem;
+}
+
+.inlineNotice {
+  margin: 8px 0 0;
+}
+
 @keyframes reveal {
   from {
     opacity: 0;

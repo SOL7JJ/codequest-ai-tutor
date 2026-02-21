@@ -30,6 +30,10 @@ Update `/Users/jamesjonathantossou-ayayi/Desktop/codequest-ai-tutor/server/.env`
 OPENAI_API_KEY=your_key_here
 DATABASE_URL=your_postgres_connection_string
 JWT_SECRET=your_long_random_secret
+APP_URL=http://localhost:5173
+STRIPE_SECRET_KEY=your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
+STRIPE_PRICE_ID_MONTHLY=price_xxx
 ```
 
 Start backend:
@@ -68,6 +72,32 @@ Auth endpoints:
 Protected tutor endpoints:
 - `POST /api/tutor`
 - `POST /api/tutor/stream`
+
+## Stripe Subscriptions (Monthly Plan)
+This project includes Stripe subscription billing with:
+- Stripe Checkout for monthly subscription purchase
+- Stripe Billing Portal for self-serve management
+- Webhook-driven subscription status sync to PostgreSQL
+
+Billing endpoints:
+- `GET /api/billing/status`
+- `POST /api/billing/create-checkout-session`
+- `POST /api/billing/create-portal-session`
+- `POST /api/stripe/webhook`
+
+Tutor access requires an active subscription status (`active` or `trialing`).
+
+### Stripe setup
+1. Create a monthly recurring product/price in Stripe Dashboard.
+2. Copy the Stripe **Price ID** into `STRIPE_PRICE_ID_MONTHLY`.
+3. In Stripe Webhooks, add endpoint:
+   - `https://<your-backend-domain>/api/stripe/webhook`
+4. Subscribe to events:
+   - `checkout.session.completed`
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+5. Copy webhook signing secret into `STRIPE_WEBHOOK_SECRET`.
 
 ## Production API URL
 Set `VITE_API_URL` in your deployed frontend environment to your backend URL, for example:
