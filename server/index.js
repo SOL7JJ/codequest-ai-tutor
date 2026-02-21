@@ -14,7 +14,7 @@ const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60000);
 const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 20);
 const DEMO_RATE_LIMIT_MAX = Number(process.env.DEMO_RATE_LIMIT_MAX || 5);
 const MAX_OUTPUT_TOKENS = Number(process.env.MAX_OUTPUT_TOKENS || 350);
-const FREE_TIER_DAILY_TURNS = Number(process.env.FREE_TIER_DAILY_TURNS || 20);
+const FREE_TIER_DAILY_TURNS = Number(process.env.FREE_TIER_DAILY_TURNS || 5);
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 const APP_URL = process.env.APP_URL || "http://localhost:5173";
@@ -32,7 +32,11 @@ const stripe = process.env.STRIPE_SECRET_KEY
 const app = express();
 app.use(cors());
 
-app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+function stripePlanFromStatus(status) {
+  return status === "active" || status === "trialing" ? "pro" : "free";
+}
+
+async function handleStripeWebhook(req, res) {
   if (!stripe || !STRIPE_WEBHOOK_SECRET) {
     return res.status(200).json({ ignored: true });
   }
@@ -67,13 +71,16 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
         await pool.query(
           `UPDATE users
            SET subscription_id = $1,
+               stripe_subscription_id = $1,
                subscription_status = $2,
-               subscription_current_period_end = to_timestamp($3),
+               plan = $3,
+               subscription_current_period_end = to_timestamp($4),
                updated_at = NOW()
-           WHERE stripe_customer_id = $4`,
+           WHERE stripe_customer_id = $5`,
           [
             String(subscription.id),
             String(subscription.status || "inactive"),
+            stripePlanFromStatus(String(subscription.status || "inactive")),
             Number(subscription.current_period_end || 0),
             String(customerId),
           ]
@@ -92,13 +99,16 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
         await pool.query(
           `UPDATE users
            SET subscription_id = $1,
+               stripe_subscription_id = $1,
                subscription_status = $2,
-               subscription_current_period_end = to_timestamp($3),
+               plan = $3,
+               subscription_current_period_end = to_timestamp($4),
                updated_at = NOW()
-           WHERE stripe_customer_id = $4`,
+           WHERE stripe_customer_id = $5`,
           [
             String(subscription.id || ""),
             String(subscription.status || "inactive"),
+            stripePlanFromStatus(String(subscription.status || "inactive")),
             Number(subscription.current_period_end || 0),
             String(customerId),
           ]
@@ -115,7 +125,10 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
     console.error("Stripe webhook handling error:", err);
     return res.status(500).json({ error: "Webhook processing failed" });
   }
-});
+}
+
+app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), handleStripeWebhook);
+app.post("/api/billing/webhook", express.raw({ type: "application/json" }), handleStripeWebhook);
 
 app.use(express.json());
 
@@ -160,7 +173,7 @@ function requireDatabase(res) {
 
 async function getUserById(userId) {
   const result = await pool.query(
-    `SELECT id, email, role, stripe_customer_id, subscription_id, subscription_status, subscription_current_period_end
+    `SELECT id, email, role, plan, stripe_customer_id, subscription_id, stripe_subscription_id, subscription_status, subscription_current_period_end
      FROM users
      WHERE id = $1`,
     [userId]
@@ -237,19 +250,43 @@ async function persistChatTurn({ userId, userMessage, assistantMessage, level, t
   }
 }
 
+async function persistLearningEvent({ userId, level, topic, mode }) {
+  if (!pool) return;
+  try {
+    await pool.query(
+      `INSERT INTO learning_events(user_id, level, topic, mode)
+       VALUES ($1, $2, $3, $4)`,
+      [userId, level || null, topic || null, mode || null]
+    );
+  } catch (err) {
+    console.error("Persist learning event error:", err);
+  }
+}
+
 async function getTodayTurnCount(userId) {
   if (!pool) return 0;
-  const dayStart = new Date();
-  dayStart.setUTCHours(0, 0, 0, 0);
-
+  const usageDate = toIsoDateOnly(new Date());
   const result = await pool.query(
-    `SELECT COUNT(*)::INT AS count
-     FROM chat_messages
-     WHERE user_id = $1 AND role = 'assistant' AND created_at >= $2`,
-    [userId, dayStart.toISOString()]
+    `SELECT request_count
+     FROM usage_logs
+     WHERE user_id = $1 AND usage_date = $2`,
+    [userId, usageDate]
   );
+  return Number(result.rows[0]?.request_count || 0);
+}
 
-  return Number(result.rows[0]?.count || 0);
+async function incrementDailyUsage(userId) {
+  if (!pool) return 0;
+  const usageDate = toIsoDateOnly(new Date());
+  const result = await pool.query(
+    `INSERT INTO usage_logs(user_id, usage_date, request_count)
+     VALUES ($1, $2, 1)
+     ON CONFLICT (user_id, usage_date)
+     DO UPDATE SET request_count = usage_logs.request_count + 1, updated_at = NOW()
+     RETURNING request_count`,
+    [userId, usageDate]
+  );
+  return Number(result.rows[0]?.request_count || 0);
 }
 
 async function getTutorAccessContext(userId, mode, isStreaming) {
@@ -270,7 +307,7 @@ async function getTutorAccessContext(userId, mode, isStreaming) {
     return { allowed: false, status: 401, error: "User not found" };
   }
 
-  const paid = isSubscriptionActive(user.subscription_status);
+  const paid = user.plan === "pro" || isSubscriptionActive(user.subscription_status);
   const turnsToday = await getTodayTurnCount(userId);
   const remaining = Math.max(FREE_TIER_DAILY_TURNS - turnsToday, 0);
 
@@ -326,7 +363,8 @@ async function getTutorAccessContext(userId, mode, isStreaming) {
   if (turnsToday >= FREE_TIER_DAILY_TURNS) {
     return {
       allowed: false,
-      status: 429,
+      status: 402,
+      code: "LIMIT_REACHED",
       error: `Free plan daily limit reached (${FREE_TIER_DAILY_TURNS} turns). Upgrade to continue now.`,
       billing: {
         status: user.subscription_status || "inactive",
@@ -502,7 +540,7 @@ app.post("/api/auth/register", async (req, res) => {
   try {
     const passwordHash = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      "INSERT INTO users(email, password_hash, role) VALUES($1, $2, $3) RETURNING id, email, role, subscription_status",
+      "INSERT INTO users(email, password_hash, role) VALUES($1, $2, $3) RETURNING id, email, role, plan, subscription_status",
       [normalizedEmail, passwordHash, role]
     );
 
@@ -532,7 +570,7 @@ app.post("/api/auth/login", async (req, res) => {
 
   try {
     const result = await pool.query(
-      "SELECT id, email, role, password_hash, subscription_status FROM users WHERE email = $1",
+      "SELECT id, email, role, plan, password_hash, subscription_status FROM users WHERE email = $1",
       [normalizedEmail]
     );
 
@@ -551,6 +589,7 @@ app.post("/api/auth/login", async (req, res) => {
       id: row.id,
       email: row.email,
       role: row.role || "student",
+      plan: row.plan || "free",
       subscription_status: row.subscription_status,
     };
     const token = buildToken(user);
@@ -577,6 +616,7 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
         id: user.id,
         email: user.email,
         role: user.role || "student",
+        plan: user.plan || "free",
         subscription_status: user.subscription_status,
       },
     });
@@ -595,14 +635,15 @@ app.get("/api/billing/status", requireAuth, async (req, res) => {
 
     const dailyUsed = await getTodayTurnCount(req.user.sub);
     const dailyRemaining = Math.max(FREE_TIER_DAILY_TURNS - dailyUsed, 0);
-    const paid = isSubscriptionActive(user.subscription_status);
+    const paid = user.plan === "pro" || isSubscriptionActive(user.subscription_status);
 
     return res.status(200).json({
       billing: {
         status: user.subscription_status || "inactive",
         customerId: user.stripe_customer_id || null,
+        subscriptionId: user.stripe_subscription_id || user.subscription_id || null,
         currentPeriodEnd: user.subscription_current_period_end || null,
-        plan: paid ? "pro" : "free",
+        plan: user.plan || (paid ? "pro" : "free"),
         usage: {
           dailyLimit: paid ? null : FREE_TIER_DAILY_TURNS,
           dailyUsed,
@@ -819,6 +860,77 @@ app.get("/api/progress/overview", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("Progress overview error:", err);
     return res.status(500).json({ error: "Failed to fetch progress overview" });
+  }
+});
+
+app.get("/api/progress/summary", requireAuth, async (req, res) => {
+  if (!requireDatabase(res)) return;
+
+  try {
+    const [topicResult, recentResult, weekResult, activeDatesResult] = await Promise.all([
+      pool.query(
+        `SELECT COALESCE(NULLIF(topic, ''), 'General') AS topic, COUNT(*)::INT AS count
+         FROM learning_events
+         WHERE user_id = $1
+         GROUP BY 1
+         ORDER BY count DESC, topic ASC`,
+        [req.user.sub]
+      ),
+      pool.query(
+        `SELECT id, level, topic, mode, created_at
+         FROM learning_events
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT 20`,
+        [req.user.sub]
+      ),
+      pool.query(
+        `SELECT COUNT(*)::INT AS count
+         FROM learning_events
+         WHERE user_id = $1
+           AND created_at >= (NOW() - INTERVAL '6 day')`,
+        [req.user.sub]
+      ),
+      pool.query(
+        `SELECT DISTINCT (created_at AT TIME ZONE 'UTC')::date AS activity_date
+         FROM learning_events
+         WHERE user_id = $1
+         ORDER BY activity_date DESC
+         LIMIT 365`,
+        [req.user.sub]
+      ),
+    ]);
+
+    const topicCounts = topicResult.rows.map((row) => ({
+      topic: row.topic,
+      count: Number(row.count || 0),
+    }));
+    const topTopics = topicCounts.slice(0, 3);
+    const activeDates = new Set(activeDatesResult.rows.map((row) => String(row.activity_date)));
+    const streakDays = computeCurrentStreak(activeDates);
+    const thisWeekActivityCount = Number(weekResult.rows[0]?.count || 0);
+
+    const recentActivity = recentResult.rows.map((row) => ({
+      id: row.id,
+      level: row.level || "KS3",
+      topic: row.topic || "General",
+      mode: row.mode || "Explain",
+      createdAt: row.created_at,
+    }));
+
+    return res.status(200).json({
+      summary: {
+        thisWeekActivityCount,
+        streakDays,
+        totalSessions: Number(topicCounts.reduce((sum, t) => sum + t.count, 0)),
+      },
+      topTopics,
+      topicCounts,
+      recentActivity,
+    });
+  } catch (err) {
+    console.error("Progress summary error:", err);
+    return res.status(500).json({ error: "Failed to fetch progress summary" });
   }
 });
 
@@ -1068,7 +1180,7 @@ app.post("/api/billing/create-checkout-session", requireAuth, async (req, res) =
     const user = await getUserById(req.user.sub);
     if (!user) return res.status(401).json({ error: "User not found" });
 
-    if (isSubscriptionActive(user.subscription_status)) {
+    if (user.plan === "pro" || isSubscriptionActive(user.subscription_status)) {
       return res.status(400).json({ error: "Subscription already active" });
     }
 
@@ -1093,8 +1205,8 @@ app.post("/api/billing/create-checkout-session", requireAuth, async (req, res) =
       mode: "subscription",
       customer: customerId,
       line_items: [{ price: STRIPE_PRICE_ID_MONTHLY, quantity: 1 }],
-      success_url: `${APP_URL}/?checkout=success`,
-      cancel_url: `${APP_URL}/?checkout=cancel`,
+      success_url: `${APP_URL}/billing/success`,
+      cancel_url: `${APP_URL}/billing/cancel`,
       allow_promotion_codes: true,
       metadata: {
         app_user_id: String(user.id),
@@ -1148,6 +1260,7 @@ app.post("/api/tutor", requireAuth, tutorRateLimit, async (req, res) => {
     const access = await getTutorAccessContext(req.user.sub, mode, false);
     if (!access.allowed) {
       return res.status(access.status || 403).json({
+        code: access.code,
         error: access.error || "Tutor access denied",
         billing: access.billing,
       });
@@ -1185,6 +1298,7 @@ app.post("/api/tutor", requireAuth, tutorRateLimit, async (req, res) => {
     }
 
     const reply = response.output_text || "(No output_text returned)";
+    await incrementDailyUsage(req.user.sub);
     await persistChatTurn({
       userId: req.user.sub,
       userMessage: message,
@@ -1193,6 +1307,7 @@ app.post("/api/tutor", requireAuth, tutorRateLimit, async (req, res) => {
       topic,
       mode,
     });
+    await persistLearningEvent({ userId: req.user.sub, level, topic, mode });
     return res.json({ reply });
   } catch (e) {
     if (String(e?.message || "").includes("timed out")) {
@@ -1219,6 +1334,7 @@ app.post(
       const access = await getTutorAccessContext(req.user.sub, mode, true);
       if (!access.allowed) {
         return res.status(access.status || 403).json({
+          code: access.code,
           error: access.error || "Tutor access denied",
           billing: access.billing,
         });
@@ -1254,6 +1370,7 @@ app.post(
         }
       }
 
+      await incrementDailyUsage(req.user.sub);
       await persistChatTurn({
         userId: req.user.sub,
         userMessage: message,
@@ -1262,6 +1379,7 @@ app.post(
         topic,
         mode,
       });
+      await persistLearningEvent({ userId: req.user.sub, level, topic, mode });
 
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       return res.end();
@@ -1285,8 +1403,10 @@ async function ensureSchema() {
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'student',
+      plan TEXT NOT NULL DEFAULT 'free',
       stripe_customer_id TEXT UNIQUE,
       subscription_id TEXT,
+      stripe_subscription_id TEXT,
       subscription_status TEXT NOT NULL DEFAULT 'inactive',
       subscription_current_period_end TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -1296,6 +1416,7 @@ async function ensureSchema() {
 
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT UNIQUE");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_id TEXT");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT");
   await pool.query(
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status TEXT NOT NULL DEFAULT 'inactive'"
   );
@@ -1306,6 +1427,18 @@ async function ensureSchema() {
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
   );
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'student'");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free'");
+  await pool.query(`
+    UPDATE users
+    SET plan = CASE
+      WHEN subscription_status IN ('active', 'trialing') THEN 'pro'
+      ELSE 'free'
+    END
+    WHERE plan IS DISTINCT FROM CASE
+      WHEN subscription_status IN ('active', 'trialing') THEN 'pro'
+      ELSE 'free'
+    END
+  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chat_messages (
@@ -1323,6 +1456,30 @@ async function ensureSchema() {
   await pool.query(
     "CREATE INDEX IF NOT EXISTS idx_chat_messages_user_created_at ON chat_messages(user_id, created_at DESC)"
   );
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS usage_logs (
+      id BIGSERIAL PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      usage_date DATE NOT NULL,
+      request_count INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id, usage_date)
+    )
+  `);
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_usage_logs_user_date ON usage_logs(user_id, usage_date DESC)");
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS learning_events (
+      id BIGSERIAL PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      level TEXT,
+      topic TEXT,
+      mode TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS lessons (
@@ -1389,6 +1546,10 @@ async function ensureSchema() {
   `);
 
   await pool.query("CREATE INDEX IF NOT EXISTS idx_lessons_user ON lessons(user_id, created_at DESC)");
+  await pool.query(
+    "CREATE INDEX IF NOT EXISTS idx_learning_events_user_created_at ON learning_events(user_id, created_at DESC)"
+  );
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_learning_events_user_topic ON learning_events(user_id, topic)");
   await pool.query("CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user ON quiz_attempts(user_id, created_at DESC)");
   await pool.query(
     "CREATE INDEX IF NOT EXISTS idx_code_evaluations_user ON code_evaluations(user_id, created_at DESC)"

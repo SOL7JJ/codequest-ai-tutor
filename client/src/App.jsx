@@ -18,6 +18,7 @@ function isSubscriptionActive(status) {
 }
 
 export default function App() {
+  const [currentPath, setCurrentPath] = useState(() => window.location.pathname || "/");
   const [user, setUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [authMode, setAuthMode] = useState("login");
@@ -135,6 +136,12 @@ export default function App() {
     [getToken]
   );
 
+  const goToPath = useCallback((path) => {
+    if (window.location.pathname === path) return;
+    window.history.pushState({}, "", path);
+    setCurrentPath(path);
+  }, []);
+
   const isProPlan = isSubscriptionActive(billingStatus) || billingPlan === "pro";
 
   const fetchBillingStatus = useCallback(async () => {
@@ -169,16 +176,16 @@ export default function App() {
     setProgressLoading(true);
     setProgressError("");
     try {
-      const { res, data, rawText } = await fetchJson("/api/progress/overview", { method: "GET" });
+      const { res, data, rawText } = await fetchJson("/api/progress/summary", { method: "GET" });
       if (res.status === 401) {
         localStorage.removeItem(TOKEN_KEY);
         setUser(null);
         return;
       }
-      if (!res.ok) throw new Error(data?.error || rawText || "Failed to load progress dashboard");
+      if (!res.ok) throw new Error(data?.error || rawText || "Failed to load progress summary");
       setProgressData(data);
     } catch (err) {
-      setProgressError(err?.message || "Failed to load progress dashboard");
+      setProgressError(err?.message || "Failed to load progress summary");
     } finally {
       setProgressLoading(false);
     }
@@ -648,8 +655,36 @@ export default function App() {
   }, [user, fetchBillingStatus, fetchChatHistory, fetchProgressOverview, fetchLessons, fetchStudentTasks, fetchTeacherResults]);
 
   useEffect(() => {
+    const onPopState = () => setCurrentPath(window.location.pathname || "/");
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  useEffect(() => {
     const storedNotice = sessionStorage.getItem(CHECKOUT_NOTICE_KEY);
     if (storedNotice) setCheckoutNotice(storedNotice);
+
+    const path = window.location.pathname;
+    if (path === "/billing/success") {
+      const notice = getToken()
+        ? "Subscription activated successfully. Welcome to CodeQuest Pro."
+        : "Payment successful. Log in with the same email to unlock CodeQuest Pro.";
+      setCheckoutNotice(notice);
+      sessionStorage.setItem(CHECKOUT_NOTICE_KEY, notice);
+      if (getToken()) fetchBillingStatus();
+      window.history.replaceState({}, "", "/");
+      setCurrentPath("/");
+      return;
+    }
+
+    if (path === "/billing/cancel") {
+      const notice = "Checkout canceled. You can subscribe any time.";
+      setCheckoutNotice(notice);
+      sessionStorage.setItem(CHECKOUT_NOTICE_KEY, notice);
+      window.history.replaceState({}, "", "/");
+      setCurrentPath("/");
+      return;
+    }
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
@@ -667,7 +702,7 @@ export default function App() {
       sessionStorage.setItem(CHECKOUT_NOTICE_KEY, notice);
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [getToken]);
+  }, [fetchBillingStatus, getToken]);
 
   useEffect(() => {
     if (!chatRef.current) return;
@@ -675,14 +710,12 @@ export default function App() {
   }, [messages, loading]);
 
   const isFreshSession = messages.length === 1 && messages[0]?.role === "assistant";
-  const topTopics = progressData?.topicBreakdown?.slice(0, 5) || [];
-  const modeBreakdown = progressData?.modeBreakdown || [];
-  const dailyActivity = progressData?.dailyActivity || [];
-  const completedTopics = progressData?.completedTopics || [];
-
-  const lastActiveLabel = progressData?.summary?.lastActiveAt
-    ? new Date(progressData.summary.lastActiveAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
-    : "Never";
+  const topTopics = progressData?.topTopics || [];
+  const topicCounts = progressData?.topicCounts || [];
+  const recentActivity = progressData?.recentActivity || [];
+  const thisWeekActivityCount = progressData?.summary?.thisWeekActivityCount || 0;
+  const streakDays = progressData?.summary?.streakDays || 0;
+  const totalSessions = progressData?.summary?.totalSessions || 0;
 
   const renewalLabel = billingPeriodEnd
     ? new Date(billingPeriodEnd).toLocaleDateString(undefined, { month: "short", day: "numeric" })
@@ -704,6 +737,69 @@ export default function App() {
     );
   }
 
+  if (currentPath === "/pricing") {
+    return (
+      <div className="authShell">
+        <main className="landing pricingPage">
+          <header className="landingTop">
+            <div className="landingBrand">
+              <span className="landingLogo">CQ</span>
+              <span>CodeQuest AI Tutor</span>
+            </div>
+            <button type="button" className="modeBtn" onClick={() => goToPath("/")}>
+              Back
+            </button>
+          </header>
+
+          <section className="authCard">
+            <h2>Pricing</h2>
+            <p>Choose the plan that matches your learning pace.</p>
+            <div className="pricingGrid">
+              <article className="pricingCard">
+                <h3>Free</h3>
+                <p className="pricingPrice">£0 / month</p>
+                <ul>
+                  <li>5 sessions/day</li>
+                  <li>Basic tutor (Explain + Hint)</li>
+                </ul>
+                <button type="button" className="modeBtn" onClick={() => goToPath("/")}>
+                  Start Free
+                </button>
+              </article>
+
+              <article className="pricingCard pricingCardPro">
+                <h3>Pro</h3>
+                <p className="pricingPrice">Monthly plan</p>
+                <ul>
+                  <li>Unlimited tutor sessions</li>
+                  <li>Exam-style marking</li>
+                  <li>Progress tracking dashboard</li>
+                  <li>Saved history</li>
+                </ul>
+                <button
+                  type="button"
+                  className="sendBtn"
+                  onClick={() => {
+                    if (!user) {
+                      setAuthMode("signup");
+                      setCheckoutNotice("Create your account, then click Upgrade to Pro.");
+                      goToPath("/");
+                      return;
+                    }
+                    handleStartSubscription();
+                  }}
+                  disabled={billingActionLoading}
+                >
+                  {billingActionLoading ? "Redirecting..." : "Upgrade to Pro"}
+                </button>
+              </article>
+            </div>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div className="authShell">
@@ -721,6 +817,11 @@ export default function App() {
               <p className="heroKicker">AI-Powered Learning Platform</p>
               <h1>Master Computer Science with structured, exam-ready coaching</h1>
               <p className="heroText">Learn coding faster with tutor chat, code evaluation, lesson tracking, and dashboards.</p>
+              <div className="heroActions">
+                <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
+                  View Pricing
+                </button>
+              </div>
             </div>
 
             <section className="authCard">
@@ -806,6 +907,9 @@ export default function App() {
             <button type="button" className="badge signOutBtn" onClick={isProPlan ? handleManageBilling : handleStartSubscription} disabled={billingActionLoading}>
               {isProPlan ? "Billing" : billingActionLoading ? "Opening..." : "Upgrade"}
             </button>
+            <button type="button" className="badge signOutBtn" onClick={() => goToPath("/pricing")}>
+              Pricing
+            </button>
             <button type="button" className="badge signOutBtn" onClick={handleSignOut}>Log out</button>
           </div>
         </div>
@@ -865,14 +969,10 @@ export default function App() {
           {progressError && <p className="authError">{progressError}</p>}
 
           <div className="metricsGrid">
-            <article className="metricCard"><span>Total turns</span><strong>{progressData?.summary?.totalTurns || 0}</strong></article>
-            <article className="metricCard"><span>Topics covered</span><strong>{progressData?.summary?.topicsCovered || 0}</strong></article>
-            <article className="metricCard"><span>Lessons completed</span><strong>{progressData?.summary?.lessonsCompleted || 0} / {progressData?.summary?.lessonsTotal || 0}</strong></article>
-            <article className="metricCard"><span>Quizzes taken</span><strong>{progressData?.summary?.quizzesTaken || 0}</strong></article>
-            <article className="metricCard"><span>Avg quiz score</span><strong>{progressData?.summary?.averageQuizScore || 0}%</strong></article>
-            <article className="metricCard"><span>Avg code score</span><strong>{progressData?.summary?.averageCodeScore || 0} / 10</strong></article>
-            <article className="metricCard"><span>Current streak</span><strong>{progressData?.summary?.currentStreakDays || 0} day(s)</strong></article>
-            <article className="metricCard"><span>Last active</span><strong>{lastActiveLabel}</strong></article>
+            <article className="metricCard"><span>This week activity</span><strong>{thisWeekActivityCount}</strong></article>
+            <article className="metricCard"><span>Top topics tracked</span><strong>{topTopics.length}</strong></article>
+            <article className="metricCard"><span>Streak</span><strong>{streakDays} day(s)</strong></article>
+            <article className="metricCard"><span>Total sessions</span><strong>{totalSessions}</strong></article>
           </div>
 
           <div className="dashboardSectionTabs">
@@ -886,7 +986,7 @@ export default function App() {
           {studentDashTab === "overview" && (
             <div className="dashboardGrid">
               <article className="dashboardCard">
-                <h3>Top topics</h3>
+                <h3>Top 3 topics practiced</h3>
                 {topTopics.length === 0 && <p>No topic activity yet.</p>}
                 {topTopics.map((item) => {
                   const max = topTopics[0]?.count || 1;
@@ -901,33 +1001,26 @@ export default function App() {
               </article>
 
               <article className="dashboardCard">
-                <h3>Mode usage</h3>
-                {modeBreakdown.length === 0 && <p>No mode activity yet.</p>}
+                <h3>Counts by topic</h3>
+                {topicCounts.length === 0 && <p>No topic activity yet.</p>}
                 <div className="modeChips">
-                  {modeBreakdown.map((item) => (
-                    <span key={item.mode} className="badge">{item.mode}: {item.count}</span>
-                  ))}
-                </div>
-                <h3 style={{ marginTop: 14 }}>Completed topics</h3>
-                {completedTopics.length === 0 && <p>No completed topics yet.</p>}
-                <div className="modeChips">
-                  {completedTopics.map((item) => (
-                    <span key={item} className="badge">{item}</span>
+                  {topicCounts.map((item) => (
+                    <span key={item.topic} className="badge">{item.topic}: {item.count}</span>
                   ))}
                 </div>
               </article>
 
               <article className="dashboardCard">
-                <h3>Last 7 days activity</h3>
-                {dailyActivity.length === 0 && <p>No recent activity yet.</p>}
-                {dailyActivity.map((item) => (
-                  <div key={item.date} className="progressRow">
-                    <div className="progressMeta"><span>{item.date.slice(5)}</span><strong>{item.turns}</strong></div>
-                    <div className="progressTrack">
-                      <div className="progressBar" style={{ width: `${Math.max(8, Math.round((item.turns / Math.max(...dailyActivity.map((d) => d.turns), 1)) * 100))}%` }} />
+                <h3>Recent sessions</h3>
+                {recentActivity.length === 0 && <p>No sessions yet.</p>}
+                <div className="simpleList">
+                  {recentActivity.map((session) => (
+                    <div key={session.id} className="listCol">
+                      <strong>{session.topic || "General"}</strong> · {session.mode || "Explain"} · {session.level || "KS3"}
+                      <p>{new Date(session.createdAt).toLocaleString()}</p>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </article>
             </div>
           )}

@@ -208,7 +208,7 @@ button:disabled {
   margin-top: 12px;
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .metricCard {
@@ -335,6 +335,16 @@ button:disabled {
   border-radius: 10px;
   background: #f9fbff;
   padding: 8px 10px;
+}
+
+.listCol strong {
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.listCol p {
+  margin: 4px 0 0;
+  font-size: 0.86rem;
 }
 
 .listRow {
@@ -722,6 +732,10 @@ button:disabled {
   line-height: 1.45;
 }
 
+.heroActions {
+  margin-top: 14px;
+}
+
 .heroStats {
   margin-top: 16px;
   display: grid;
@@ -800,6 +814,47 @@ button:disabled {
 .authCard p {
   margin: 8px 0 0;
   color: var(--muted);
+}
+
+.pricingPage .authCard {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.pricingGrid {
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.pricingCard {
+  border: 1px solid #d4dfed;
+  border-radius: 14px;
+  background: #f9fbff;
+  padding: 14px;
+}
+
+.pricingCardPro {
+  border-color: #8eb1df;
+  background: linear-gradient(180deg, #f3f8ff 0%, #ffffff 100%);
+}
+
+.pricingCard h3 {
+  margin: 0;
+  font-family: "Sora", sans-serif;
+}
+
+.pricingPrice {
+  margin: 6px 0 0;
+  color: #2d4e77;
+  font-weight: 700;
+}
+
+.pricingCard ul {
+  margin: 10px 0 12px;
+  padding-left: 18px;
+  color: #38587f;
 }
 
 .demoCard {
@@ -1027,6 +1082,10 @@ button:disabled {
   }
 
   .landingHero {
+    grid-template-columns: 1fr;
+  }
+
+  .pricingGrid {
     grid-template-columns: 1fr;
   }
 

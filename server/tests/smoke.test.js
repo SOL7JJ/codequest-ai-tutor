@@ -149,3 +149,23 @@ test("GET /api/progress/overview returns db config error when DATABASE_URL is mi
   assert.equal(response.status, 500);
   assert.match(body.error, /DATABASE_URL is not configured/);
 });
+
+test("GET /api/progress/summary requires auth", async () => {
+  const response = await fetch(`${baseUrl}/api/progress/summary`);
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.match(body.error, /Unauthorized/);
+});
+
+test("GET /api/progress/summary returns db config error when DATABASE_URL is missing", async () => {
+  const response = await fetch(`${baseUrl}/api/progress/summary`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 500);
+  assert.match(body.error, /DATABASE_URL is not configured/);
+});

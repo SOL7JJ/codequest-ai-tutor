@@ -84,6 +84,7 @@ Billing endpoints:
 - `GET /api/billing/status`
 - `POST /api/billing/create-checkout-session`
 - `POST /api/billing/create-portal-session`
+- `POST /api/billing/webhook`
 - `POST /api/stripe/webhook`
 
 Chat history endpoint:
@@ -91,7 +92,8 @@ Chat history endpoint:
 
 Chat messages are persisted in PostgreSQL (`chat_messages` table) per user.
 
-Progress endpoint:
+Progress endpoints:
+- `GET /api/progress/summary`
 - `GET /api/progress/overview`
 
 Student productivity endpoints:
@@ -108,23 +110,42 @@ Teacher endpoints:
 - `POST /api/teacher/tasks/assign`
 - `GET /api/teacher/results`
 
-The dashboard summarizes turns, topics, quizzes, marks, streak, and last-7-day activity from persisted chat turns.
+Progress tracking writes one `learning_events` row per tutor session (user, level, topic, mode, timestamp).
+The summary dashboard highlights this-week activity count, top topics, streak days, and recent sessions.
 
 Tutor access tiers:
 - Free plan: `Explain` + `Hint` with daily turn limits
 - Pro plan (`active` or `trialing`): unlimited turns + `Quiz`, `Mark`, and streaming responses
+- Free-user daily tutor requests are tracked in `usage_logs` (default limit: `5/day`).
 
 ### Stripe setup
 1. Create a monthly recurring product/price in Stripe Dashboard.
 2. Copy the Stripe **Price ID** into `STRIPE_PRICE_ID_MONTHLY`.
 3. In Stripe Webhooks, add endpoint:
-   - `https://<your-backend-domain>/api/stripe/webhook`
+   - `https://<your-backend-domain>/api/billing/webhook`
 4. Subscribe to events:
    - `checkout.session.completed`
    - `customer.subscription.created`
    - `customer.subscription.updated`
    - `customer.subscription.deleted`
 5. Copy webhook signing secret into `STRIPE_WEBHOOK_SECRET`.
+6. Set checkout return URLs via `APP_URL` so Stripe redirects to:
+   - success: `https://<your-frontend-domain>/billing/success`
+   - cancel: `https://<your-frontend-domain>/billing/cancel`
+
+### Stripe env vars required
+- `APP_URL` (full frontend URL, e.g. `https://codequest-ai-tutor.vercel.app`)
+- `STRIPE_SECRET_KEY` (`sk_test_...` or `sk_live_...`)
+- `STRIPE_PRICE_ID_MONTHLY` (`price_...`)
+- `STRIPE_WEBHOOK_SECRET` (`whsec_...`)
+
+### Local Stripe test steps
+1. Start backend (`cd server && npm run dev`) and frontend (`cd client && npm run dev`).
+2. Ensure local env vars are set (`APP_URL=http://localhost:5173`, Stripe keys/price/whsec).
+3. Click **Upgrade to Pro** in the app and complete Checkout.
+4. Stripe should redirect to `/billing/success` and app should refresh billing state.
+5. Confirm `GET /api/billing/status` returns `plan: "pro"`.
+6. Cancel subscription in Stripe test mode and confirm webhook updates plan to `free`.
 
 ## Production API URL
 Set `VITE_API_URL` in your deployed frontend environment to your backend URL, for example:
@@ -137,14 +158,21 @@ In `/Users/jamesjonathantossou-ayayi/Desktop/codequest-ai-tutor/server/.env`:
 - `REQUEST_TIMEOUT_MS`: max time for OpenAI response (default `20000`)
 - `RATE_LIMIT_WINDOW_MS`: limiter window size (default `60000`)
 - `RATE_LIMIT_MAX`: max requests per IP per window on `/api/tutor` (default `20`)
-- `FREE_TIER_DAILY_TURNS`: daily assistant-turn cap for free users (default `20`)
+- `FREE_TIER_DAILY_TURNS`: daily assistant-turn cap for free users (default `5`)
 - `TEACHER_EMAILS`: optional comma-separated allowlist for teacher signup role
+- `DEMO_RATE_LIMIT_MAX`: max unauthenticated demo tutor requests per window (default `5`)
 
 ## Smoke tests
 Run backend smoke tests:
 ```bash
 cd server
 npm test
+```
+
+Manual free-usage limit verification:
+```bash
+cd server
+npm run test:usage-limit
 ```
 
 Current smoke coverage:
