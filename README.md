@@ -78,6 +78,7 @@ This project includes Stripe subscription billing with:
 - Stripe Checkout for monthly subscription purchase
 - Stripe Billing Portal for self-serve management
 - Webhook-driven subscription status sync to PostgreSQL
+- Tiered access controls (Free + Pro)
 
 Billing endpoints:
 - `GET /api/billing/status`
@@ -85,7 +86,19 @@ Billing endpoints:
 - `POST /api/billing/create-portal-session`
 - `POST /api/stripe/webhook`
 
-Tutor access requires an active subscription status (`active` or `trialing`).
+Chat history endpoint:
+- `GET /api/chat/history`
+
+Chat messages are persisted in PostgreSQL (`chat_messages` table) per user.
+
+Progress endpoint:
+- `GET /api/progress/overview`
+
+The dashboard summarizes turns, topics, quizzes, marks, streak, and last-7-day activity from persisted chat turns.
+
+Tutor access tiers:
+- Free plan: `Explain` + `Hint` with daily turn limits
+- Pro plan (`active` or `trialing`): unlimited turns + `Quiz`, `Mark`, and streaming responses
 
 ### Stripe setup
 1. Create a monthly recurring product/price in Stripe Dashboard.
@@ -110,6 +123,7 @@ In `/Users/jamesjonathantossou-ayayi/Desktop/codequest-ai-tutor/server/.env`:
 - `REQUEST_TIMEOUT_MS`: max time for OpenAI response (default `20000`)
 - `RATE_LIMIT_WINDOW_MS`: limiter window size (default `60000`)
 - `RATE_LIMIT_MAX`: max requests per IP per window on `/api/tutor` (default `20`)
+- `FREE_TIER_DAILY_TURNS`: daily assistant-turn cap for free users (default `20`)
 
 ## Smoke tests
 Run backend smoke tests:
@@ -185,7 +199,6 @@ npm run ui:capture -- --label experiment-a --url http://127.0.0.1:4173
 - Backend: https://codequest-ai-tutor.onrender.com
 
 ## Future Improvements
-- Streaming responses
-- User accounts and progress tracking
 - Saved lessons
-- Teacher dashboard
+- Assignment and class groups
+- Teacher/parent analytics dashboard

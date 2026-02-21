@@ -109,3 +109,43 @@ test("POST /api/tutor returns clear error when OPENAI_API_KEY is missing", async
   assert.equal(response.status, 500);
   assert.match(body.error, /OPENAI_API_KEY is not configured/);
 });
+
+test("GET /api/chat/history requires auth", async () => {
+  const response = await fetch(`${baseUrl}/api/chat/history`);
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.match(body.error, /Unauthorized/);
+});
+
+test("GET /api/chat/history returns db config error when DATABASE_URL is missing", async () => {
+  const response = await fetch(`${baseUrl}/api/chat/history`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 500);
+  assert.match(body.error, /DATABASE_URL is not configured/);
+});
+
+test("GET /api/progress/overview requires auth", async () => {
+  const response = await fetch(`${baseUrl}/api/progress/overview`);
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.match(body.error, /Unauthorized/);
+});
+
+test("GET /api/progress/overview returns db config error when DATABASE_URL is missing", async () => {
+  const response = await fetch(`${baseUrl}/api/progress/overview`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 500);
+  assert.match(body.error, /DATABASE_URL is not configured/);
+});

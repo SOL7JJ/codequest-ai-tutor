@@ -6,6 +6,13 @@ const API_BASE =
   import.meta.env.VITE_API_URL || "https://codequest-ai-tutor.onrender.com";
 
 const TOKEN_KEY = "codequest_auth_token";
+const LAST_EMAIL_KEY = "codequest_last_email";
+const CHECKOUT_NOTICE_KEY = "codequest_checkout_notice";
+const DEFAULT_WELCOME_MESSAGE = {
+  role: "assistant",
+  content:
+    "👋 Hi! I'm your AI Tutor.\n\nI can:\n• Explain topics step-by-step\n• Help you debug code\n• Give hints (not just answers)\n• Create practice questions\n\nWhat are you working on today?",
+};
 
 function isSubscriptionActive(status) {
   return status === "active" || status === "trialing";
@@ -15,28 +22,32 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [authMode, setAuthMode] = useState("login");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => localStorage.getItem(LAST_EMAIL_KEY) || "");
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
 
   const [billingStatus, setBillingStatus] = useState("inactive");
+  const [billingPlan, setBillingPlan] = useState("free");
   const [billingLoading, setBillingLoading] = useState(false);
+  const [billingPeriodEnd, setBillingPeriodEnd] = useState(null);
+  const [billingDailyLimit, setBillingDailyLimit] = useState(null);
+  const [billingDailyUsed, setBillingDailyUsed] = useState(0);
+  const [billingDailyRemaining, setBillingDailyRemaining] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [billingActionLoading, setBillingActionLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
   const [checkoutNotice, setCheckoutNotice] = useState("");
+  const [viewMode, setViewMode] = useState("tutor");
+  const [progressLoading, setProgressLoading] = useState(false);
+  const [progressError, setProgressError] = useState("");
+  const [progressData, setProgressData] = useState(null);
 
   const [level, setLevel] = useState("KS3");
   const [topic, setTopic] = useState("Python");
   const [mode, setMode] = useState("Explain");
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content:
-        "👋 Hi! I'm your AI Tutor.\n\nI can:\n• Explain topics step-by-step\n• Help you debug code\n• Give hints (not just answers)\n• Create practice questions\n\nWhat are you working on today?",
-    },
-  ]);
+  const [messages, setMessages] = useState([DEFAULT_WELCOME_MESSAGE]);
   const [loading, setLoading] = useState(false);
   const chatRef = useRef(null);
 
@@ -106,11 +117,83 @@ export default function App() {
       }
 
       setBillingStatus(data?.billing?.status || "inactive");
+      setBillingPlan(data?.billing?.plan || "free");
+      setBillingPeriodEnd(data?.billing?.currentPeriodEnd || null);
+      setBillingDailyLimit(data?.billing?.usage?.dailyLimit ?? null);
+      setBillingDailyUsed(data?.billing?.usage?.dailyUsed ?? 0);
+      setBillingDailyRemaining(data?.billing?.usage?.dailyRemaining ?? null);
     } catch (err) {
       setBillingStatus("inactive");
+      setBillingPlan("free");
+      setBillingPeriodEnd(null);
+      setBillingDailyLimit(null);
+      setBillingDailyUsed(0);
+      setBillingDailyRemaining(null);
       setBillingError(err?.message || "Failed to load billing status");
     } finally {
       setBillingLoading(false);
+    }
+  }, [fetchJson, user]);
+
+  const fetchProgressOverview = useCallback(async () => {
+    if (!user) return;
+
+    setProgressLoading(true);
+    setProgressError("");
+    try {
+      const { res, data, rawText } = await fetchJson("/api/progress/overview", { method: "GET" });
+
+      if (res.status === 401) {
+        localStorage.removeItem(TOKEN_KEY);
+        setUser(null);
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error(data?.error || rawText || "Failed to load progress dashboard");
+      }
+
+      setProgressData(data);
+    } catch (err) {
+      setProgressError(err?.message || "Failed to load progress dashboard");
+    } finally {
+      setProgressLoading(false);
+    }
+  }, [fetchJson, user]);
+
+  const fetchChatHistory = useCallback(async () => {
+    if (!user) return;
+
+    setHistoryLoading(true);
+    try {
+      const { res, data, rawText } = await fetchJson("/api/chat/history?limit=120", { method: "GET" });
+
+      if (res.status === 401) {
+        localStorage.removeItem(TOKEN_KEY);
+        setUser(null);
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error(data?.error || rawText || "Failed to load chat history");
+      }
+
+      const history = Array.isArray(data?.messages) ? data.messages : [];
+      if (!history.length) {
+        setMessages([DEFAULT_WELCOME_MESSAGE]);
+        return;
+      }
+
+      setMessages(
+        history.map((m) => ({
+          role: m.role === "user" ? "user" : "assistant",
+          content: m.content || "",
+        }))
+      );
+    } catch (err) {
+      console.error("Fetch chat history error:", err);
+    } finally {
+      setHistoryLoading(false);
     }
   }, [fetchJson, user]);
 
@@ -136,6 +219,7 @@ export default function App() {
       }
 
       localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(LAST_EMAIL_KEY, data.user?.email || email.trim());
       setUser(data.user);
       setPassword("");
       setAuthError("");
@@ -150,15 +234,18 @@ export default function App() {
     localStorage.removeItem(TOKEN_KEY);
     setUser(null);
     setBillingStatus("inactive");
+    setBillingPlan("free");
+    setBillingPeriodEnd(null);
+    setBillingDailyLimit(null);
+    setBillingDailyUsed(0);
+    setBillingDailyRemaining(null);
     setBillingError("");
     setCheckoutNotice("");
-    setMessages([
-      {
-        role: "assistant",
-        content:
-          "👋 Hi! I'm your AI Tutor.\n\nI can:\n• Explain topics step-by-step\n• Help you debug code\n• Give hints (not just answers)\n• Create practice questions\n\nWhat are you working on today?",
-      },
-    ]);
+    sessionStorage.removeItem(CHECKOUT_NOTICE_KEY);
+    setViewMode("tutor");
+    setProgressData(null);
+    setProgressError("");
+    setMessages([DEFAULT_WELCOME_MESSAGE]);
   }
 
   async function handleStartSubscription() {
@@ -248,9 +335,14 @@ export default function App() {
         throw new Error("Session expired. Please log in again.");
       }
 
-      if (res.status === 402) {
+      if (res.status === 402 || res.status === 403 || res.status === 429) {
         setBillingStatus(data?.billing?.status || "inactive");
-        throw new Error("Active subscription required. Please subscribe to continue.");
+        setBillingPlan(data?.billing?.plan || "free");
+        setBillingPeriodEnd(data?.billing?.currentPeriodEnd || null);
+        setBillingDailyLimit(data?.billing?.usage?.dailyLimit ?? null);
+        setBillingDailyUsed(data?.billing?.usage?.dailyUsed ?? 0);
+        setBillingDailyRemaining(data?.billing?.usage?.dailyRemaining ?? null);
+        throw new Error(data?.error || "This action needs Pro or available free turns.");
       }
 
       if (!res.ok) {
@@ -284,7 +376,7 @@ export default function App() {
         throw new Error("Session expired. Please log in again.");
       }
 
-      if (res.status === 402) {
+      if (res.status === 402 || res.status === 403 || res.status === 429) {
         const rawText = await res.text();
         let data = null;
         try {
@@ -293,7 +385,12 @@ export default function App() {
           // noop
         }
         setBillingStatus(data?.billing?.status || "inactive");
-        throw new Error("Active subscription required. Please subscribe to continue.");
+        setBillingPlan(data?.billing?.plan || "free");
+        setBillingPeriodEnd(data?.billing?.currentPeriodEnd || null);
+        setBillingDailyLimit(data?.billing?.usage?.dailyLimit ?? null);
+        setBillingDailyUsed(data?.billing?.usage?.dailyUsed ?? 0);
+        setBillingDailyRemaining(data?.billing?.usage?.dailyRemaining ?? null);
+        throw new Error(data?.error || "This action needs Pro or available free turns.");
       }
 
       if (!res.ok) {
@@ -365,6 +462,7 @@ export default function App() {
       }
     } finally {
       setLoading(false);
+      fetchProgressOverview();
     }
   }
 
@@ -407,17 +505,52 @@ export default function App() {
   }, [user, fetchBillingStatus]);
 
   useEffect(() => {
+    if (!user) return;
+    fetchChatHistory();
+  }, [user, fetchChatHistory]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchProgressOverview();
+  }, [user, fetchProgressOverview]);
+
+  useEffect(() => {
+    const storedNotice = sessionStorage.getItem(CHECKOUT_NOTICE_KEY);
+    if (storedNotice) {
+      setCheckoutNotice(storedNotice);
+    }
+
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
-      setCheckoutNotice("Subscription activated successfully. Welcome to CodeQuest Pro.");
+      const successNotice = getToken()
+        ? "Subscription activated successfully. Welcome to CodeQuest Pro."
+        : "Payment successful. Log in with the same email to unlock CodeQuest Pro.";
+      setCheckoutNotice(successNotice);
+      sessionStorage.setItem(CHECKOUT_NOTICE_KEY, successNotice);
       fetchBillingStatus();
       window.history.replaceState({}, "", window.location.pathname);
     }
     if (params.get("checkout") === "cancel") {
-      setCheckoutNotice("Checkout canceled. You can subscribe any time.");
+      const cancelNotice = "Checkout canceled. You can subscribe any time.";
+      setCheckoutNotice(cancelNotice);
+      sessionStorage.setItem(CHECKOUT_NOTICE_KEY, cancelNotice);
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [fetchBillingStatus]);
+  }, [fetchBillingStatus, getToken]);
+
+  useEffect(() => {
+    if (!user || !isSubscriptionActive(billingStatus)) return;
+    const successNotice = "Subscription activated successfully. Welcome to CodeQuest Pro.";
+    setCheckoutNotice(successNotice);
+    sessionStorage.setItem(CHECKOUT_NOTICE_KEY, successNotice);
+  }, [user, billingStatus]);
+
+  useEffect(() => {
+    const isPro = isSubscriptionActive(billingStatus) || billingPlan === "pro";
+    if (!isPro && (mode === "Quiz" || mode === "Mark")) {
+      setMode("Explain");
+    }
+  }, [billingPlan, billingStatus, mode]);
 
   useEffect(() => {
     if (!chatRef.current) return;
@@ -425,6 +558,23 @@ export default function App() {
   }, [messages, loading]);
 
   const isFreshSession = messages.length === 1 && messages[0]?.role === "assistant";
+  const topTopics = progressData?.topicBreakdown?.slice(0, 5) || [];
+  const modeBreakdown = progressData?.modeBreakdown || [];
+  const dailyActivity = progressData?.dailyActivity || [];
+  const lastActiveLabel = progressData?.summary?.lastActiveAt
+    ? new Date(progressData.summary.lastActiveAt).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      })
+    : "Never";
+  const renewalLabel = billingPeriodEnd
+    ? new Date(billingPeriodEnd).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    : "TBD";
+  const isProPlan = isSubscriptionActive(billingStatus) || billingPlan === "pro";
+  const freeTurnsLabel =
+    billingDailyLimit == null || billingDailyRemaining == null
+      ? null
+      : `${billingDailyRemaining}/${billingDailyLimit} free turns left today`;
 
   if (authChecking) {
     return (
@@ -495,6 +645,7 @@ export default function App() {
             <section className="authCard">
               <h2>Start your learning session</h2>
               <p>Login or create an account to access your personalized tutor.</p>
+              {checkoutNotice && <p className="paywallNotice authCheckoutNotice">{checkoutNotice}</p>}
 
               <div className="authModeRow">
                 <button
@@ -553,36 +704,12 @@ export default function App() {
     );
   }
 
-  if (!isSubscriptionActive(billingStatus)) {
+  if (historyLoading) {
     return (
       <div className="authShell">
-        <section className="paywallCard">
-          <h1>Unlock CodeQuest Pro</h1>
-          <p>Get unlimited AI tutoring, quizzes, and exam-style feedback with a monthly subscription.</p>
-
-          {checkoutNotice && <p className="paywallNotice">{checkoutNotice}</p>}
-
-          <div className="planBox">
-            <div>
-              <h3>Monthly Plan</h3>
-              <p>Full access to Explain, Hint, Quiz, Mark, and streaming responses.</p>
-            </div>
-            <span className="planBadge">Stripe Billing</span>
-          </div>
-
-          <div className="paywallActions">
-            <button className="sendBtn" type="button" onClick={handleStartSubscription} disabled={billingActionLoading}>
-              {billingActionLoading ? "Redirecting..." : "Subscribe monthly"}
-            </button>
-            <button className="googleBtn" type="button" onClick={handleManageBilling} disabled={billingActionLoading}>
-              Manage billing
-            </button>
-            <button className="modeBtn" type="button" onClick={handleSignOut}>
-              Log out
-            </button>
-          </div>
-
-          {billingError && <p className="authError">{billingError}</p>}
+        <section className="authCard authLoadingCard">
+          <h1>Loading your chat history</h1>
+          <p>Syncing previous messages...</p>
         </section>
       </div>
     );
@@ -597,12 +724,28 @@ export default function App() {
             Learn Computer Science with an AI tutor that explains step-by-step.
           </p>
           <div className="badges">
-            <span className="badge">Pro</span>
+            <span className="badge">{isProPlan ? "Pro" : "Free"}</span>
+            {isProPlan ? (
+              <span className="badge planBadgeInline">Plan active • Renews {renewalLabel}</span>
+            ) : (
+              <span className="badge freeBadgeInline">{freeTurnsLabel || "Free tier access enabled"}</span>
+            )}
             <span className="badge">Session turns: {Math.max(messages.length - 1, 0)}</span>
             <span className="badge">{user.email || "Signed in user"}</span>
-            <button type="button" className="badge signOutBtn" onClick={handleManageBilling}>
-              Billing
-            </button>
+            {isProPlan ? (
+              <button type="button" className="badge signOutBtn" onClick={handleManageBilling}>
+                Billing
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="badge signOutBtn"
+                onClick={handleStartSubscription}
+                disabled={billingActionLoading}
+              >
+                {billingActionLoading ? "Opening..." : "Upgrade"}
+              </button>
+            )}
             <button type="button" className="badge signOutBtn" onClick={handleSignOut}>
               Log out
             </button>
@@ -628,126 +771,274 @@ export default function App() {
           <select value={mode} onChange={(e) => setMode(e.target.value)}>
             <option>Explain</option>
             <option>Hint</option>
-            <option>Quiz</option>
-            <option>Mark</option>
+            <option disabled={!isProPlan}>Quiz{isProPlan ? "" : " (Pro)"}</option>
+            <option disabled={!isProPlan}>Mark{isProPlan ? "" : " (Pro)"}</option>
           </select>
         </div>
       </header>
 
       {checkoutNotice && <p className="paywallNotice inlineNotice">{checkoutNotice}</p>}
-
-      <div className="starters">
-        <span className="startersLabel">Try:</span>
-        {starterPrompts.map((p) => (
-          <button
-            key={p.label}
-            type="button"
-            onClick={() => sendMessage(null, p.text)}
-            disabled={loading}
-          >
-            {p.label}
+      {!isProPlan && (
+        <section className="freePlanBanner">
+          <div>
+            <h3>Free plan</h3>
+            <p>
+              You can use Explain and Hint with daily limits. Upgrade to unlock Quiz, Mark, and streaming responses.
+            </p>
+            <p className="freePlanMeta">
+              Usage today: {billingDailyUsed}
+              {billingDailyLimit == null ? "" : ` / ${billingDailyLimit}`}
+            </p>
+          </div>
+          <button type="button" className="sendBtn" onClick={handleStartSubscription} disabled={billingActionLoading}>
+            {billingActionLoading ? "Redirecting..." : "Upgrade to Pro"}
           </button>
-        ))}
-      </div>
+        </section>
+      )}
+      {billingError && <p className="authError">{billingError}</p>}
 
-      <div className="layout">
-        <main className="chat" ref={chatRef}>
-          {isFreshSession && (
-            <div className="emptyState" aria-hidden="true">
-              <div className="emptyOrb emptyOrbOne" />
-              <div className="emptyOrb emptyOrbTwo" />
-              <div className="emptyStateInner">
-                <div className="emptyStateIcon">✦</div>
-                <h3>Your learning session starts here</h3>
-                <p>Pick a prompt or ask a question to get personalized guidance.</p>
-              </div>
-            </div>
-          )}
-
-          {messages.map((m, i) => (
-            <div key={i} className={`msg ${m.role}`}>
-              <div className="bubble">
-                <ReactMarkdown>{m.content}</ReactMarkdown>
-              </div>
-            </div>
-          ))}
-
-          {loading && (
-            <div className="msg assistant">
-              <div className="bubble typing" aria-live="polite" aria-label="Assistant is thinking">
-                <span className="typingDot" />
-                <span className="typingDot" />
-                <span className="typingDot" />
-              </div>
-            </div>
-          )}
-        </main>
-
-        <aside className="side">
-          <h3>Quick actions</h3>
-
-          <div className="actions">
-            <button
-              type="button"
-              onClick={() => setMode("Explain")}
-              className={`modeBtn ${mode === "Explain" ? "active" : ""}`}
-            >
-              Explain
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("Hint")}
-              className={`modeBtn ${mode === "Hint" ? "active" : ""}`}
-            >
-              Hint
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("Quiz")}
-              className={`modeBtn ${mode === "Quiz" ? "active" : ""}`}
-            >
-              Quiz
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("Mark")}
-              className={`modeBtn ${mode === "Mark" ? "active" : ""}`}
-            >
-              Mark
-            </button>
-          </div>
-
-          <div className="tips">
-            <h4>Tip</h4>
-            <p>
-              Paste your code and tell me what it should do vs what it does.
-              I’ll guide you step-by-step.
-            </p>
-          </div>
-
-          <div className="meta">
-            <h4>Current settings</h4>
-            <p>
-              <strong>Level:</strong> {level}
-              <br />
-              <strong>Topic:</strong> {topic}
-              <br />
-              <strong>Mode:</strong> {mode}
-            </p>
-          </div>
-        </aside>
-      </div>
-
-      <form className="composer" onSubmit={sendMessage}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a CS question…"
-        />
-        <button type="submit" disabled={loading} className="sendBtn">
-          {loading ? "Sending..." : "Send"}
+      <div className="workspaceTabs">
+        <button
+          type="button"
+          className={`modeBtn ${viewMode === "tutor" ? "active" : ""}`}
+          onClick={() => setViewMode("tutor")}
+        >
+          Tutor Workspace
         </button>
-      </form>
+        <button
+          type="button"
+          className={`modeBtn ${viewMode === "dashboard" ? "active" : ""}`}
+          onClick={() => {
+            setViewMode("dashboard");
+            fetchProgressOverview();
+          }}
+        >
+          Progress Dashboard
+        </button>
+      </div>
+
+      {viewMode === "dashboard" && (
+        <section className="dashboard">
+          <div className="dashboardHead">
+            <h2>Student Progress</h2>
+            <button type="button" className="googleBtn" onClick={fetchProgressOverview} disabled={progressLoading}>
+              {progressLoading ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+
+          {progressError && <p className="authError">{progressError}</p>}
+
+          <div className="metricsGrid">
+            <article className="metricCard">
+              <span>Total turns</span>
+              <strong>{progressData?.summary?.totalTurns || 0}</strong>
+            </article>
+            <article className="metricCard">
+              <span>Topics covered</span>
+              <strong>{progressData?.summary?.topicsCovered || 0}</strong>
+            </article>
+            <article className="metricCard">
+              <span>Quizzes taken</span>
+              <strong>{progressData?.summary?.quizzesTaken || 0}</strong>
+            </article>
+            <article className="metricCard">
+              <span>Marks requested</span>
+              <strong>{progressData?.summary?.marksRequested || 0}</strong>
+            </article>
+            <article className="metricCard">
+              <span>Current streak</span>
+              <strong>{progressData?.summary?.currentStreakDays || 0} day(s)</strong>
+            </article>
+            <article className="metricCard">
+              <span>Last active</span>
+              <strong>{lastActiveLabel}</strong>
+            </article>
+          </div>
+
+          <div className="dashboardGrid">
+            <article className="dashboardCard">
+              <h3>Top topics</h3>
+              {topTopics.length === 0 && <p>No topic activity yet.</p>}
+              {topTopics.map((item) => {
+                const max = topTopics[0]?.count || 1;
+                const width = Math.max(8, Math.round((item.count / max) * 100));
+                return (
+                  <div key={item.topic} className="progressRow">
+                    <div className="progressMeta">
+                      <span>{item.topic}</span>
+                      <strong>{item.count}</strong>
+                    </div>
+                    <div className="progressTrack">
+                      <div className="progressBar" style={{ width: `${width}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </article>
+
+            <article className="dashboardCard">
+              <h3>Mode usage</h3>
+              {modeBreakdown.length === 0 && <p>No mode activity yet.</p>}
+              <div className="modeChips">
+                {modeBreakdown.map((item) => (
+                  <span key={item.mode} className="badge">
+                    {item.mode}: {item.count}
+                  </span>
+                ))}
+              </div>
+            </article>
+
+            <article className="dashboardCard">
+              <h3>Last 7 days activity</h3>
+              {dailyActivity.length === 0 && <p>No recent activity yet.</p>}
+              {dailyActivity.map((item) => (
+                <div key={item.date} className="progressRow">
+                  <div className="progressMeta">
+                    <span>{item.date.slice(5)}</span>
+                    <strong>{item.turns}</strong>
+                  </div>
+                  <div className="progressTrack">
+                    <div
+                      className="progressBar"
+                      style={{
+                        width: `${Math.max(
+                          8,
+                          Math.round(
+                            (item.turns /
+                              Math.max(...dailyActivity.map((d) => d.turns), 1)) *
+                              100
+                          )
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </article>
+          </div>
+        </section>
+      )}
+
+      {viewMode === "tutor" && (
+        <>
+          <div className="starters">
+            <span className="startersLabel">Try:</span>
+            {starterPrompts.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => sendMessage(null, p.text)}
+                disabled={loading}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="layout">
+            <main className="chat" ref={chatRef}>
+              {isFreshSession && (
+                <div className="emptyState" aria-hidden="true">
+                  <div className="emptyOrb emptyOrbOne" />
+                  <div className="emptyOrb emptyOrbTwo" />
+                  <div className="emptyStateInner">
+                    <div className="emptyStateIcon">✦</div>
+                    <h3>Your learning session starts here</h3>
+                    <p>Pick a prompt or ask a question to get personalized guidance.</p>
+                  </div>
+                </div>
+              )}
+
+              {messages.map((m, i) => (
+                <div key={i} className={`msg ${m.role}`}>
+                  <div className="bubble">
+                    <ReactMarkdown>{m.content}</ReactMarkdown>
+                  </div>
+                </div>
+              ))}
+
+              {loading && (
+                <div className="msg assistant">
+                  <div className="bubble typing" aria-live="polite" aria-label="Assistant is thinking">
+                    <span className="typingDot" />
+                    <span className="typingDot" />
+                    <span className="typingDot" />
+                  </div>
+                </div>
+              )}
+            </main>
+
+            <aside className="side">
+              <h3>Quick actions</h3>
+
+              <div className="actions">
+                <button
+                  type="button"
+                  onClick={() => setMode("Explain")}
+                  className={`modeBtn ${mode === "Explain" ? "active" : ""}`}
+                >
+                  Explain
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("Hint")}
+                  className={`modeBtn ${mode === "Hint" ? "active" : ""}`}
+                >
+                  Hint
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("Quiz")}
+                  className={`modeBtn ${mode === "Quiz" ? "active" : ""}`}
+                  disabled={!isProPlan}
+                >
+                  {isProPlan ? "Quiz" : "Quiz (Pro)"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("Mark")}
+                  className={`modeBtn ${mode === "Mark" ? "active" : ""}`}
+                  disabled={!isProPlan}
+                >
+                  {isProPlan ? "Mark" : "Mark (Pro)"}
+                </button>
+              </div>
+
+              <div className="tips">
+                <h4>Tip</h4>
+                <p>
+                  Paste your code and tell me what it should do vs what it does.
+                  I’ll guide you step-by-step.
+                </p>
+              </div>
+
+              <div className="meta">
+                <h4>Current settings</h4>
+                <p>
+                  <strong>Level:</strong> {level}
+                  <br />
+                  <strong>Topic:</strong> {topic}
+                  <br />
+                  <strong>Mode:</strong> {mode}
+                </p>
+              </div>
+            </aside>
+          </div>
+        </>
+      )}
+
+      {viewMode === "tutor" && (
+        <form className="composer" onSubmit={sendMessage}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask a CS question…"
+          />
+          <button type="submit" disabled={loading} className="sendBtn">
+            {loading ? "Sending..." : "Send"}
+          </button>
+        </form>
+      )}
     </div>
   );
 }

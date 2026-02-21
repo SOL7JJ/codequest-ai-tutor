@@ -80,6 +80,18 @@ body {
   font-weight: 600;
 }
 
+.planBadgeInline {
+  border-color: #a7d7ba;
+  background: #edf9f1;
+  color: #1d6136;
+}
+
+.freeBadgeInline {
+  border-color: #d7c79d;
+  background: #fff8e8;
+  color: #755507;
+}
+
 .signOutBtn {
   cursor: pointer;
 }
@@ -157,6 +169,129 @@ button:disabled {
 
 .starters button:hover {
   box-shadow: 0 8px 18px rgba(32, 84, 148, 0.12);
+}
+
+.workspaceTabs {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.dashboard {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow);
+  padding: 14px;
+}
+
+.dashboardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dashboardHead h2 {
+  margin: 0;
+  font-family: "Sora", sans-serif;
+}
+
+.dashboardHead .googleBtn {
+  margin-top: 0;
+  width: auto;
+  min-width: 128px;
+}
+
+.metricsGrid {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.metricCard {
+  border: 1px solid #cfdbeb;
+  border-radius: 12px;
+  background: #f9fbff;
+  padding: 10px;
+}
+
+.metricCard span {
+  display: block;
+  color: #5a7090;
+  font-size: 0.82rem;
+}
+
+.metricCard strong {
+  display: block;
+  margin-top: 4px;
+  font-family: "Sora", sans-serif;
+  font-size: 1.1rem;
+  color: #1f446f;
+}
+
+.dashboardGrid {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.dashboardCard {
+  border: 1px solid #cfdbeb;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.dashboardCard h3 {
+  margin: 0 0 10px;
+  font-family: "Sora", sans-serif;
+}
+
+.dashboardCard p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.progressRow {
+  margin-top: 8px;
+}
+
+.progressMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+  color: #355982;
+}
+
+.progressMeta strong {
+  font-family: "Sora", sans-serif;
+  color: #1e4470;
+  font-size: 0.84rem;
+}
+
+.progressTrack {
+  margin-top: 4px;
+  height: 8px;
+  border-radius: 999px;
+  background: #e7eef7;
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2f69b6 0%, #1b4f94 100%);
+}
+
+.modeChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .layout {
@@ -721,6 +856,44 @@ button:disabled {
   margin: 8px 0 0;
 }
 
+.freePlanBanner {
+  margin: 10px 0 14px;
+  border: 1px solid #e9d8a8;
+  background: #fffaf0;
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.freePlanBanner h3 {
+  margin: 0;
+  font-family: "Sora", sans-serif;
+  font-size: 0.98rem;
+  color: #5d4508;
+}
+
+.freePlanBanner p {
+  margin: 6px 0 0;
+  color: #70571a;
+}
+
+.freePlanMeta {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.freePlanBanner .sendBtn {
+  min-height: 40px;
+}
+
+.authCheckoutNotice {
+  margin-top: 12px;
+  margin-bottom: 2px;
+}
+
 @keyframes reveal {
   from {
     opacity: 0;
@@ -746,6 +919,14 @@ button:disabled {
 }
 
 @media (max-width: 960px) {
+  .metricsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboardGrid {
+    grid-template-columns: 1fr;
+  }
+
   .landingHero {
     grid-template-columns: 1fr;
   }
@@ -764,6 +945,23 @@ button:disabled {
 }
 
 @media (max-width: 768px) {
+  .workspaceTabs {
+    width: 100%;
+  }
+
+  .workspaceTabs .modeBtn {
+    width: 100%;
+  }
+
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .freePlanBanner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .authShell {
     padding: 14px;
   }
