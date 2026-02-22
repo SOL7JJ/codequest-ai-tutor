@@ -6,6 +6,25 @@ const API_BASE = import.meta.env.VITE_API_URL || "https://codequest-ai-tutor.onr
 const TOKEN_KEY = "codequest_auth_token";
 const LAST_EMAIL_KEY = "codequest_last_email";
 const CHECKOUT_NOTICE_KEY = "codequest_checkout_notice";
+const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+const JS_RUN_TIMEOUT_MS = 4000;
+const IDE_TEMPLATES = {
+  python: `# Python starter
+name = "CodeQuest"
+print(f"Hello, {name}!")
+
+for i in range(1, 4):
+    print("Step", i)
+`,
+  javascript: `// JavaScript starter
+const name = "CodeQuest";
+console.log(\`Hello, ${name}!\`);
+
+for (let i = 1; i <= 3; i += 1) {
+  console.log("Step", i);
+}
+`,
+};
 
 const DEFAULT_WELCOME_MESSAGE = {
   role: "assistant",
@@ -72,11 +91,18 @@ export default function App() {
   const [tasks, setTasks] = useState([]);
   const [taskSavingId, setTaskSavingId] = useState(null);
 
-  const [codeInput, setCodeInput] = useState("");
   const [codeLanguage, setCodeLanguage] = useState("python");
+  const [ideDrafts, setIdeDrafts] = useState(() => ({ ...IDE_TEMPLATES }));
   const [codeEvalLoading, setCodeEvalLoading] = useState(false);
   const [codeEvalError, setCodeEvalError] = useState("");
   const [codeEvalResult, setCodeEvalResult] = useState(null);
+  const [ideRunLoading, setIdeRunLoading] = useState(false);
+  const [ideRunError, setIdeRunError] = useState("");
+  const [ideOutput, setIdeOutput] = useState("");
+  const pyodideRef = useRef(null);
+  const pyodideLoadPromiseRef = useRef(null);
+  const jsWorkerRef = useRef(null);
+  const jsWorkerTimeoutRef = useRef(null);
 
   const [teacherTopic, setTeacherTopic] = useState("Python");
   const [teacherLevel, setTeacherLevel] = useState("KS3");
@@ -106,6 +132,7 @@ export default function App() {
     ],
     []
   );
+  const codeInput = ideDrafts[codeLanguage] || "";
 
   const getToken = useCallback(() => localStorage.getItem(TOKEN_KEY) || "", []);
 
@@ -254,6 +281,147 @@ export default function App() {
       setTeacherLoading(false);
     }
   }, [fetchJson, user]);
+
+  const ensurePyodide = useCallback(async () => {
+    if (pyodideRef.current) return pyodideRef.current;
+    if (pyodideLoadPromiseRef.current) return pyodideLoadPromiseRef.current;
+
+    pyodideLoadPromiseRef.current = (async () => {
+      if (!window.loadPyodide) {
+        await new Promise((resolve, reject) => {
+          const existingScript = document.querySelector('script[data-pyodide="true"]');
+          if (existingScript) {
+            existingScript.addEventListener("load", () => resolve(), { once: true });
+            existingScript.addEventListener("error", () => reject(new Error("Failed to load Python runtime")), {
+              once: true,
+            });
+            return;
+          }
+
+          const script = document.createElement("script");
+          script.src = `${PYODIDE_INDEX_URL}pyodide.js`;
+          script.async = true;
+          script.dataset.pyodide = "true";
+          script.addEventListener("load", () => resolve(), { once: true });
+          script.addEventListener("error", () => reject(new Error("Failed to load Python runtime")), {
+            once: true,
+          });
+          document.head.appendChild(script);
+        });
+      }
+
+      const pyodide = await window.loadPyodide({ indexURL: PYODIDE_INDEX_URL });
+      pyodideRef.current = pyodide;
+      return pyodide;
+    })().catch((err) => {
+      pyodideLoadPromiseRef.current = null;
+      throw err;
+    });
+
+    return pyodideLoadPromiseRef.current;
+  }, []);
+
+  const stopJavaScriptRunner = useCallback(() => {
+    if (jsWorkerTimeoutRef.current) {
+      window.clearTimeout(jsWorkerTimeoutRef.current);
+      jsWorkerTimeoutRef.current = null;
+    }
+    if (jsWorkerRef.current) {
+      jsWorkerRef.current.terminate();
+      jsWorkerRef.current = null;
+    }
+  }, []);
+
+  const runJavaScriptInWorker = useCallback(
+    (code) =>
+      new Promise((resolve, reject) => {
+        stopJavaScriptRunner();
+
+        const output = [];
+        let settled = false;
+        const workerScript = `
+          const emit = (type, payload) => self.postMessage({ type, payload });
+          const format = (value) => {
+            if (typeof value === "string") return value;
+            try {
+              return JSON.stringify(value);
+            } catch {
+              return String(value);
+            }
+          };
+
+          console.log = (...args) => emit("log", args.map(format).join(" "));
+          console.error = (...args) => emit("log", args.map(format).join(" "));
+          console.warn = (...args) => emit("log", args.map(format).join(" "));
+
+          self.onmessage = async (event) => {
+            if (event?.data?.type !== "run") return;
+            try {
+              const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+              const runner = new AsyncFunction(event.data.code);
+              const result = await runner();
+              if (typeof result !== "undefined") emit("log", format(result));
+              emit("done");
+            } catch (error) {
+              emit("error", error?.stack || error?.message || String(error));
+            }
+          };
+        `;
+
+        const workerUrl = URL.createObjectURL(new Blob([workerScript], { type: "application/javascript" }));
+        const worker = new Worker(workerUrl);
+        jsWorkerRef.current = worker;
+
+        const cleanup = () => {
+          if (jsWorkerTimeoutRef.current) {
+            window.clearTimeout(jsWorkerTimeoutRef.current);
+            jsWorkerTimeoutRef.current = null;
+          }
+          if (jsWorkerRef.current === worker) {
+            jsWorkerRef.current = null;
+          }
+          worker.terminate();
+          URL.revokeObjectURL(workerUrl);
+        };
+
+        worker.onmessage = (event) => {
+          const { type, payload } = event.data || {};
+          if (type === "log") {
+            output.push(String(payload || ""));
+            return;
+          }
+          if (settled) return;
+          if (type === "done") {
+            settled = true;
+            cleanup();
+            resolve(output.join("\n").trim());
+            return;
+          }
+          if (type === "error") {
+            settled = true;
+            cleanup();
+            reject(new Error(String(payload || "JavaScript runtime error")));
+          }
+        };
+
+        worker.onerror = (event) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error(event?.message || "Failed to execute JavaScript"));
+        };
+
+        jsWorkerTimeoutRef.current = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error(`Execution timed out after ${JS_RUN_TIMEOUT_MS / 1000}s.`));
+        }, JS_RUN_TIMEOUT_MS);
+
+        worker.postMessage({ type: "run", code });
+      }),
+    [stopJavaScriptRunner]
+  );
 
   async function handleEmailAuth(e) {
     if (e?.preventDefault) e.preventDefault();
@@ -492,6 +660,78 @@ export default function App() {
     }
   }
 
+  function handleLanguageChange(nextLanguage) {
+    setCodeLanguage(nextLanguage);
+    setIdeOutput("");
+    setIdeRunError("");
+  }
+
+  function handleCodeInputChange(value) {
+    setIdeDrafts((prev) => ({ ...prev, [codeLanguage]: value }));
+  }
+
+  async function handleRunCode() {
+    if (!codeInput.trim()) {
+      setIdeRunError("Write some code first.");
+      return;
+    }
+
+    setIdeRunLoading(true);
+    setIdeRunError("");
+    setIdeOutput("Running...");
+
+    try {
+      if (codeLanguage === "javascript") {
+        const jsOutput = await runJavaScriptInWorker(codeInput);
+        setIdeOutput(jsOutput || "No output (use console.log(...) to display values).");
+        return;
+      }
+
+      const pyodide = await ensurePyodide();
+      const escapedCode = JSON.stringify(codeInput);
+      const execution = await pyodide.runPythonAsync(`
+import io
+import sys
+import traceback
+
+code = ${escapedCode}
+stdout_capture = io.StringIO()
+stderr_capture = io.StringIO()
+runtime_error = ""
+
+sys.stdout = stdout_capture
+sys.stderr = stderr_capture
+
+try:
+    exec(code, {})
+except Exception:
+    runtime_error = traceback.format_exc()
+finally:
+    sys.stdout = sys.__stdout__
+    sys.stderr = sys.__stderr__
+
+output_text = stdout_capture.getvalue()
+error_text = stderr_capture.getvalue() + runtime_error
+(output_text, error_text)
+      `);
+
+      const result = execution?.toJs ? execution.toJs() : execution;
+      execution?.destroy?.();
+
+      const outputText = String(result?.[0] || "");
+      const errorText = String(result?.[1] || "");
+      if (errorText.trim()) {
+        setIdeRunError(errorText.trim());
+      }
+      setIdeOutput(outputText.trim() ? outputText : "No output (use print(...) to display values).");
+    } catch (err) {
+      setIdeRunError(err?.message || `Failed to run ${codeLanguage} code.`);
+      setIdeOutput("");
+    } finally {
+      setIdeRunLoading(false);
+    }
+  }
+
   async function handleCreateLesson(e) {
     e.preventDefault();
     if (!lessonTitle.trim()) return;
@@ -712,6 +952,8 @@ export default function App() {
     if (!chatRef.current) return;
     chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages, loading]);
+
+  useEffect(() => () => stopJavaScriptRunner(), [stopJavaScriptRunner]);
 
   const isFreshSession = messages.length === 1 && messages[0]?.role === "assistant";
   const topTopics = progressData?.topTopics || [];
@@ -1252,11 +1494,71 @@ export default function App() {
               </div>
 
               <div className="tips">
-                <h4>AI code evaluation</h4>
-                <textarea value={codeInput} onChange={(e) => setCodeInput(e.target.value)} placeholder="Paste student code here..." rows={8} />
+                <h4>Student IDE</h4>
+                <p>Run Python or JavaScript code in-browser and inspect the output.</p>
+                <div className="ideLanguageTabs">
+                  <button
+                    type="button"
+                    className={`modeBtn ${codeLanguage === "python" ? "active" : ""}`}
+                    onClick={() => handleLanguageChange("python")}
+                  >
+                    Python
+                  </button>
+                  <button
+                    type="button"
+                    className={`modeBtn ${codeLanguage === "javascript" ? "active" : ""}`}
+                    onClick={() => handleLanguageChange("javascript")}
+                  >
+                    JavaScript
+                  </button>
+                </div>
+                <div className="ideShell">
+                  <div className="ideHead">
+                    <strong>{codeLanguage === "python" ? "main.py" : "main.js"}</strong>
+                    <span>{codeLanguage === "python" ? "print(...)" : "console.log(...)"}</span>
+                  </div>
+                  <textarea
+                    className="ideEditor"
+                    value={codeInput}
+                    onChange={(e) => handleCodeInputChange(e.target.value)}
+                    spellCheck="false"
+                    placeholder={codeLanguage === "python" ? "Write Python code..." : "Write JavaScript code..."}
+                    rows={11}
+                  />
+                  <div className="ideActions">
+                    <button type="button" className="modeBtn active" onClick={handleRunCode} disabled={ideRunLoading}>
+                      {ideRunLoading ? "Running..." : `Run ${codeLanguage === "python" ? "Python" : "JavaScript"}`}
+                    </button>
+                    <button
+                      type="button"
+                      className="modeBtn"
+                      onClick={() => {
+                        setIdeOutput("");
+                        setIdeRunError("");
+                      }}
+                    >
+                      Clear output
+                    </button>
+                    <button
+                      type="button"
+                      className="modeBtn"
+                      onClick={() =>
+                        setIdeDrafts((prev) => ({
+                          ...prev,
+                          [codeLanguage]: IDE_TEMPLATES[codeLanguage],
+                        }))
+                      }
+                    >
+                      Reset starter
+                    </button>
+                  </div>
+                  <pre className="miniIdeOutput">{ideOutput || "Output will appear here..."}</pre>
+                  {ideRunError && <pre className="miniIdeError">{ideRunError}</pre>}
+                </div>
                 <div className="inlineForm">
-                  <input value={codeLanguage} onChange={(e) => setCodeLanguage(e.target.value)} placeholder="Language" />
-                  <button type="button" className="modeBtn" onClick={handleEvaluateCode} disabled={codeEvalLoading}>{codeEvalLoading ? "Evaluating..." : "Evaluate code"}</button>
+                  <button type="button" className="modeBtn" onClick={handleEvaluateCode} disabled={codeEvalLoading}>
+                    {codeEvalLoading ? "Evaluating..." : "Evaluate with AI"}
+                  </button>
                 </div>
                 {codeEvalError && <p className="authError">{codeEvalError}</p>}
                 {codeEvalResult && (
