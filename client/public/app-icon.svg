@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="CodeQuest AI Tutor icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2f69b6"/>
+      <stop offset="100%" stop-color="#163d79"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+  <rect x="82" y="82" width="348" height="348" rx="88" fill="rgba(255,255,255,0.08)"/>
+  <text x="50%" y="53%" dominant-baseline="middle" text-anchor="middle" font-family="Sora,Arial,sans-serif" font-size="174" font-weight="700" fill="#f4f8ff">CQ</text>
+</svg>
