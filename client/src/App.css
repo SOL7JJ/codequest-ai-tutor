@@ -465,8 +465,9 @@ button:disabled {
 }
 
 .chat {
-  height: clamp(440px, 68vh, 780px);
-  min-height: 440px;
+  height: auto;
+  min-height: 260px;
+  max-height: clamp(440px, 68vh, 780px);
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: 16px;
@@ -477,10 +478,7 @@ button:disabled {
 }
 
 .chatStream {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+  min-height: 0;
 }
 
 .msg {
@@ -1283,7 +1281,7 @@ button:disabled {
   }
 
   .side {
-    order: -1;
+    order: 2;
     position: static;
     max-height: none;
     overflow: visible;
@@ -1340,8 +1338,8 @@ button:disabled {
   }
 
   .chat {
-    height: 56vh;
-    min-height: 360px;
+    max-height: 56vh;
+    min-height: 280px;
     border-radius: 14px;
     padding: 12px;
   }
@@ -1351,13 +1349,27 @@ button:disabled {
   }
 
   .composer {
-    position: sticky;
-    bottom: 8px;
-    z-index: 30;
+    position: static;
+    margin-top: 8px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px;
+    z-index: auto;
+  }
+
+  .composer input {
+    grid-column: 1 / -1;
   }
 
   .sendBtn {
-    min-width: 94px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .clearComposerBtn {
+    min-width: 0;
+    width: 100%;
   }
 
   .ideLanguageTabs,
