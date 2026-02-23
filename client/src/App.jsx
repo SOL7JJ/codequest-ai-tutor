@@ -65,6 +65,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState("tutor");
   const [studentDashTab, setStudentDashTab] = useState("overview");
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [topMenuOpen, setTopMenuOpen] = useState(false);
 
   const [level, setLevel] = useState("KS3");
   const [topic, setTopic] = useState("Python");
@@ -73,6 +74,7 @@ export default function App() {
   const [messages, setMessages] = useState([DEFAULT_WELCOME_MESSAGE]);
   const [loading, setLoading] = useState(false);
   const chatRef = useRef(null);
+  const topMenuRef = useRef(null);
 
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressError, setProgressError] = useState("");
@@ -958,6 +960,29 @@ error_text = stderr_capture.getvalue() + runtime_error
     chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages, loading]);
 
+  useEffect(() => {
+    if (!topMenuOpen) return;
+
+    const handlePointerDown = (event) => {
+      if (topMenuRef.current && !topMenuRef.current.contains(event.target)) {
+        setTopMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setTopMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [topMenuOpen]);
+
   useEffect(() => () => stopJavaScriptRunner(), [stopJavaScriptRunner]);
 
   const isFreshSession = messages.length === 1 && messages[0]?.role === "assistant";
@@ -1173,46 +1198,90 @@ error_text = stderr_capture.getvalue() + runtime_error
         <div className="brand">
           <h1>CodeQuest AI Tutor</h1>
           <p className="subtitle">Learn Computer Science with an AI tutor that explains step-by-step.</p>
-          <div className="badges">
-            <span className="badge">{isPremiumPlan ? "Premium" : isPaidPlan ? "Pro" : "Free"}</span>
-            <span className="badge">Role: {user.role || "student"}</span>
-            {isPaidPlan ? (
-              <span className="badge planBadgeInline">Plan active • Renews {renewalLabel}</span>
-            ) : (
-              <span className="badge freeBadgeInline">{freeTurnsLabel || "Free tier access enabled"}</span>
-            )}
-            <span className="badge">Session turns: {Math.max(messages.length - 1, 0)}</span>
-            <span className="badge">{user.email}</span>
-            <button type="button" className="badge signOutBtn" onClick={isPaidPlan ? handleManageBilling : () => goToPath("/pricing")} disabled={billingActionLoading}>
-              {isPaidPlan ? "Billing" : billingActionLoading ? "Opening..." : "Upgrade"}
-            </button>
-            <button type="button" className="badge signOutBtn" onClick={() => goToPath("/pricing")}>
-              Pricing
-            </button>
-            <button type="button" className="badge signOutBtn" onClick={handleSignOut}>Log out</button>
-          </div>
         </div>
 
-        <div className="controls">
-          <select value={level} onChange={(e) => setLevel(e.target.value)}>
-            <option>KS3</option>
-            <option>GCSE</option>
-            <option>A-Level</option>
-          </select>
-          <select value={topic} onChange={(e) => setTopic(e.target.value)}>
-            <option>Python</option>
-            <option>Algorithms</option>
-            <option>Data Representation</option>
-            <option>OOP</option>
-            <option>SQL</option>
-            <option>Networks</option>
-          </select>
-          <select value={mode} onChange={(e) => setMode(e.target.value)}>
-            <option>Explain</option>
-            <option>Hint</option>
-            <option disabled={!isPaidPlan}>Quiz{isPaidPlan ? "" : " (Pro)"}</option>
-            <option disabled={!isPaidPlan}>Mark{isPaidPlan ? "" : " (Pro)"}</option>
-          </select>
+        <div className="topMenuWrap" ref={topMenuRef}>
+          <button
+            type="button"
+            className={`topMenuToggle ${topMenuOpen ? "open" : ""}`}
+            aria-expanded={topMenuOpen}
+            aria-label="Open account and settings menu"
+            onClick={() => setTopMenuOpen((prev) => !prev)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+
+          {topMenuOpen && (
+            <div className="topMenuPanel">
+              <div className="badges">
+                <span className="badge">{isPremiumPlan ? "Premium" : isPaidPlan ? "Pro" : "Free"}</span>
+                <span className="badge">Role: {user.role || "student"}</span>
+                {isPaidPlan ? (
+                  <span className="badge planBadgeInline">Plan active • Renews {renewalLabel}</span>
+                ) : (
+                  <span className="badge freeBadgeInline">{freeTurnsLabel || "Free tier access enabled"}</span>
+                )}
+                <span className="badge">Session turns: {Math.max(messages.length - 1, 0)}</span>
+                <span className="badge">{user.email}</span>
+                <button
+                  type="button"
+                  className="badge signOutBtn"
+                  onClick={() => {
+                    setTopMenuOpen(false);
+                    if (isPaidPlan) handleManageBilling();
+                    else goToPath("/pricing");
+                  }}
+                  disabled={billingActionLoading}
+                >
+                  {isPaidPlan ? "Billing" : billingActionLoading ? "Opening..." : "Upgrade"}
+                </button>
+                <button
+                  type="button"
+                  className="badge signOutBtn"
+                  onClick={() => {
+                    setTopMenuOpen(false);
+                    goToPath("/pricing");
+                  }}
+                >
+                  Pricing
+                </button>
+                <button
+                  type="button"
+                  className="badge signOutBtn"
+                  onClick={() => {
+                    setTopMenuOpen(false);
+                    handleSignOut();
+                  }}
+                >
+                  Log out
+                </button>
+              </div>
+
+              <div className="controls">
+                <select value={level} onChange={(e) => setLevel(e.target.value)}>
+                  <option>KS3</option>
+                  <option>GCSE</option>
+                  <option>A-Level</option>
+                </select>
+                <select value={topic} onChange={(e) => setTopic(e.target.value)}>
+                  <option>Python</option>
+                  <option>Algorithms</option>
+                  <option>Data Representation</option>
+                  <option>OOP</option>
+                  <option>SQL</option>
+                  <option>Networks</option>
+                </select>
+                <select value={mode} onChange={(e) => setMode(e.target.value)}>
+                  <option>Explain</option>
+                  <option>Hint</option>
+                  <option disabled={!isPaidPlan}>Quiz{isPaidPlan ? "" : " (Pro)"}</option>
+                  <option disabled={!isPaidPlan}>Mark{isPaidPlan ? "" : " (Pro)"}</option>
+                </select>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -1463,16 +1532,6 @@ error_text = stderr_capture.getvalue() + runtime_error
 
           <div className="layout">
             <main className="chat" ref={chatRef}>
-              <div className="chatToolbar">
-                <button
-                  type="button"
-                  className="modeBtn clearChatBtn"
-                  onClick={handleClearChat}
-                  disabled={loading || isFreshSession}
-                >
-                  Clear chat
-                </button>
-              </div>
               {isFreshSession && (
                 <div className="emptyState" aria-hidden="true">
                   <div className="emptyStateInner">
@@ -1596,6 +1655,14 @@ error_text = stderr_capture.getvalue() + runtime_error
 
           <form className="composer" onSubmit={sendMessage}>
             <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a CS question..." />
+            <button
+              type="button"
+              className="modeBtn clearComposerBtn"
+              onClick={handleClearChat}
+              disabled={loading || isFreshSession}
+            >
+              Clear chat
+            </button>
             <button type="submit" disabled={loading} className="sendBtn">{loading ? "Sending..." : "Send"}</button>
           </form>
         </>
