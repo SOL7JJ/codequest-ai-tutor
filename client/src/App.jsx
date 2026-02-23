@@ -1531,32 +1531,49 @@ error_text = stderr_capture.getvalue() + runtime_error
           </div>
 
           <div className="layout">
-            <main className="chat" ref={chatRef}>
-              {isFreshSession && (
-                <div className="emptyState" aria-hidden="true">
-                  <div className="emptyStateInner">
-                    <h3>Your learning session starts here</h3>
-                    <p>Pick a prompt or ask a question to get personalized guidance.</p>
-                  </div>
-                </div>
-              )}
+            <div className="chatColumn">
+              <main className="chat" ref={chatRef}>
+                <div className="chatStream">
+                  {isFreshSession && (
+                    <div className="emptyState" aria-hidden="true">
+                      <div className="emptyStateInner">
+                        <h3>Your learning session starts here</h3>
+                        <p>Pick a prompt or ask a question to get personalized guidance.</p>
+                      </div>
+                    </div>
+                  )}
 
-              {messages.map((m, i) => (
-                <div key={i} className={`msg ${m.role}`}>
-                  <div className="bubble"><ReactMarkdown>{m.content}</ReactMarkdown></div>
-                </div>
-              ))}
+                  {messages.map((m, i) => (
+                    <div key={i} className={`msg ${m.role}`}>
+                      <div className="bubble"><ReactMarkdown>{m.content}</ReactMarkdown></div>
+                    </div>
+                  ))}
 
-              {loading && (
-                <div className="msg assistant">
-                  <div className="bubble typing" aria-live="polite">
-                    <span className="typingDot" />
-                    <span className="typingDot" />
-                    <span className="typingDot" />
-                  </div>
+                  {loading && (
+                    <div className="msg assistant">
+                      <div className="bubble typing" aria-live="polite">
+                        <span className="typingDot" />
+                        <span className="typingDot" />
+                        <span className="typingDot" />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </main>
+              </main>
+
+              <form className="composer" onSubmit={sendMessage}>
+                <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a CS question..." />
+                <button
+                  type="button"
+                  className="modeBtn clearComposerBtn"
+                  onClick={handleClearChat}
+                  disabled={loading || isFreshSession}
+                >
+                  Clear chat
+                </button>
+                <button type="submit" disabled={loading} className="sendBtn">{loading ? "Sending..." : "Send"}</button>
+              </form>
+            </div>
 
             <aside className="side">
               <h3>Quick actions</h3>
@@ -1652,19 +1669,6 @@ error_text = stderr_capture.getvalue() + runtime_error
               </div>
             </aside>
           </div>
-
-          <form className="composer" onSubmit={sendMessage}>
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a CS question..." />
-            <button
-              type="button"
-              className="modeBtn clearComposerBtn"
-              onClick={handleClearChat}
-              disabled={loading || isFreshSession}
-            >
-              Clear chat
-            </button>
-            <button type="submit" disabled={loading} className="sendBtn">{loading ? "Sending..." : "Send"}</button>
-          </form>
         </>
       )}
     </div>

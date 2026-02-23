@@ -458,8 +458,15 @@ button:disabled {
   align-items: start;
 }
 
+.chatColumn {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .chat {
-  min-height: 540px;
+  height: clamp(440px, 68vh, 780px);
+  min-height: 440px;
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: 16px;
@@ -467,6 +474,13 @@ button:disabled {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(250, 252, 255, 0.92) 100%);
   box-shadow: var(--shadow);
   position: relative;
+}
+
+.chatStream {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .msg {
@@ -639,6 +653,10 @@ button:disabled {
   padding: 14px;
   background: var(--surface-soft);
   box-shadow: var(--shadow);
+  position: sticky;
+  top: 12px;
+  max-height: min(78vh, 860px);
+  overflow: auto;
 }
 
 .side h3,
@@ -774,7 +792,7 @@ button:disabled {
 .composer {
   display: flex;
   gap: 10px;
-  margin-top: 12px;
+  margin-top: 10px;
   padding: 11px;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -1266,6 +1284,9 @@ button:disabled {
 
   .side {
     order: -1;
+    position: static;
+    max-height: none;
+    overflow: visible;
   }
 }
 
@@ -1319,7 +1340,8 @@ button:disabled {
   }
 
   .chat {
-    min-height: 420px;
+    height: 56vh;
+    min-height: 360px;
     border-radius: 14px;
     padding: 12px;
   }
