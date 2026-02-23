@@ -393,6 +393,18 @@ button:disabled {
   position: relative;
 }
 
+.chatToolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.clearChatBtn {
+  padding: 7px 10px;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
 .msg {
   display: flex;
   margin: 11px 0;

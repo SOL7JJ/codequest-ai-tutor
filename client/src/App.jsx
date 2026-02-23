@@ -494,6 +494,11 @@ export default function App() {
     setCodeEvalResult(null);
   }
 
+  function handleClearChat() {
+    setMessages([DEFAULT_WELCOME_MESSAGE]);
+    setInput("");
+  }
+
   async function handleStartSubscription(targetPlan = "pro") {
     setBillingActionLoading(true);
     setBillingError("");
@@ -1458,6 +1463,16 @@ error_text = stderr_capture.getvalue() + runtime_error
 
           <div className="layout">
             <main className="chat" ref={chatRef}>
+              <div className="chatToolbar">
+                <button
+                  type="button"
+                  className="modeBtn clearChatBtn"
+                  onClick={handleClearChat}
+                  disabled={loading || isFreshSession}
+                >
+                  Clear chat
+                </button>
+              </div>
               {isFreshSession && (
                 <div className="emptyState" aria-hidden="true">
                   <div className="emptyStateInner">
