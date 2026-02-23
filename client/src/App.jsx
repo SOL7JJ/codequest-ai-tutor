@@ -34,6 +34,38 @@ for (let i = 1; i <= 3; i += 1) {
 `,
 };
 
+const TOPICS_BY_LEVEL = {
+  KS3: [
+    "Programming Basics",
+    "Algorithms",
+    "Data Representation",
+    "Computer Systems",
+    "Networks",
+    "Cyber Security",
+  ],
+  GCSE: [
+    "Computational Thinking",
+    "Programming Techniques",
+    "Data Representation (Binary/Hex)",
+    "Computer Architecture",
+    "Networks and Protocols",
+    "Cyber Security and Threats",
+    "Databases and SQL",
+    "Ethics and Legal Issues",
+  ],
+  "A-Level": [
+    "Advanced Algorithms",
+    "Data Structures",
+    "Object-Oriented Programming",
+    "Functional Programming",
+    "Boolean Algebra and Logic",
+    "Processors and Assembly",
+    "Networks and Communication",
+    "Databases and Normalisation",
+    "Theory of Computation",
+  ],
+};
+
 const DEFAULT_WELCOME_MESSAGE = {
   role: "assistant",
   content:
@@ -78,7 +110,7 @@ export default function App() {
   const [topMenuOpen, setTopMenuOpen] = useState(false);
 
   const [level, setLevel] = useState("KS3");
-  const [topic, setTopic] = useState("Python");
+  const [topic, setTopic] = useState(TOPICS_BY_LEVEL.KS3[0]);
   const [mode, setMode] = useState("Explain");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([DEFAULT_WELCOME_MESSAGE]);
@@ -144,6 +176,7 @@ export default function App() {
     ],
     []
   );
+  const levelTopics = useMemo(() => TOPICS_BY_LEVEL[level] || TOPICS_BY_LEVEL.KS3, [level]);
   const codeInput = ideDrafts[codeLanguage] || "";
 
   const getToken = useCallback(() => localStorage.getItem(TOKEN_KEY) || "", []);
@@ -984,6 +1017,12 @@ error_text = stderr_capture.getvalue() + runtime_error
   }, [messages, loading]);
 
   useEffect(() => {
+    if (!levelTopics.includes(topic)) {
+      setTopic(levelTopics[0]);
+    }
+  }, [levelTopics, topic]);
+
+  useEffect(() => {
     if (!topMenuOpen) return;
 
     const handlePointerDown = (event) => {
@@ -1321,12 +1360,9 @@ error_text = stderr_capture.getvalue() + runtime_error
                   <option>A-Level</option>
                 </select>
                 <select value={topic} onChange={(e) => setTopic(e.target.value)}>
-                  <option>Python</option>
-                  <option>Algorithms</option>
-                  <option>Data Representation</option>
-                  <option>OOP</option>
-                  <option>SQL</option>
-                  <option>Networks</option>
+                  {levelTopics.map((topicOption) => (
+                    <option key={topicOption}>{topicOption}</option>
+                  ))}
                 </select>
                 <select value={mode} onChange={(e) => setMode(e.target.value)}>
                   <option>Explain</option>

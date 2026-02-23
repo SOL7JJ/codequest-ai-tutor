@@ -26,6 +26,38 @@ const TEACHER_EMAILS = (process.env.TEACHER_EMAILS || "")
   .split(",")
   .map((email) => email.trim().toLowerCase())
   .filter(Boolean);
+const TOPICS_BY_LEVEL = {
+  KS3: [
+    "Programming Basics",
+    "Algorithms",
+    "Data Representation",
+    "Computer Systems",
+    "Networks",
+    "Cyber Security",
+  ],
+  GCSE: [
+    "Computational Thinking",
+    "Programming Techniques",
+    "Data Representation (Binary/Hex)",
+    "Computer Architecture",
+    "Networks and Protocols",
+    "Cyber Security and Threats",
+    "Databases and SQL",
+    "Ethics and Legal Issues",
+  ],
+  "A-Level": [
+    "Advanced Algorithms",
+    "Data Structures",
+    "Object-Oriented Programming",
+    "Functional Programming",
+    "Boolean Algebra and Logic",
+    "Processors and Assembly",
+    "Networks and Communication",
+    "Databases and Normalisation",
+    "Theory of Computation",
+  ],
+};
+const ALLOWED_LEVELS = Object.keys(TOPICS_BY_LEVEL);
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
@@ -276,6 +308,43 @@ function computeCurrentStreak(activeDateSet) {
   }
 
   return streak;
+}
+
+function normalizeTutorLevel(levelRaw) {
+  const level = String(levelRaw || "KS3").trim();
+  return ALLOWED_LEVELS.includes(level) ? level : "KS3";
+}
+
+function normalizeTutorTopic(level, topicRaw) {
+  const allowedTopics = TOPICS_BY_LEVEL[level] || TOPICS_BY_LEVEL.KS3;
+  const requestedTopic = String(topicRaw || "").trim();
+  return allowedTopics.includes(requestedTopic) ? requestedTopic : allowedTopics[0];
+}
+
+function buildTutorSystemPrompt({ level, topic, mode, preferConcise = false }) {
+  const levelInstructionMap = {
+    KS3: "Use simple vocabulary, short steps, and concrete beginner examples.",
+    GCSE: "Use GCSE terminology, exam-style structure, and concise mark-scheme cues.",
+    "A-Level": "Use deeper theory, formal terminology, and clear trade-off analysis.",
+  };
+
+  const promptParts = [
+    `You are a ${level} Computer Science tutor.`,
+    `Topic: ${topic}`,
+    `Mode: ${mode}`,
+    `Difficulty target: ${level}.`,
+    levelInstructionMap[level] || levelInstructionMap.KS3,
+    "Keep content aligned to the selected level and do not jump to higher-level material unless the user explicitly asks.",
+    "If the user asks beyond the selected level, briefly acknowledge it and then explain at the selected level first.",
+    "Use UK curriculum framing when helpful.",
+    "Teach clearly and step-by-step.",
+  ];
+
+  if (preferConcise) {
+    promptParts.push("Prefer concise answers unless the user asks for more detail.");
+  }
+
+  return promptParts.join("\n");
 }
 
 async function persistChatTurn({ userId, userMessage, assistantMessage, level, topic, mode }) {
@@ -1306,11 +1375,13 @@ app.post("/api/billing/create-portal-session", requireAuth, async (req, res) => 
 
 app.post("/api/tutor", requireAuth, tutorRateLimit, async (req, res) => {
   try {
-    const { message, level = "KS3", topic = "Python", mode = "Explain" } = req.body || {};
+    const { message, level: rawLevel = "KS3", topic: rawTopic = "", mode = "Explain" } = req.body || {};
 
     if (!message || typeof message !== "string") {
       return res.status(400).json({ error: "Missing 'message' string" });
     }
+    const level = normalizeTutorLevel(rawLevel);
+    const topic = normalizeTutorTopic(level, rawTopic);
 
     const access = await getTutorAccessContext(req.user.sub, mode, false);
     if (!access.allowed) {
@@ -1326,7 +1397,7 @@ app.post("/api/tutor", requireAuth, tutorRateLimit, async (req, res) => {
       return res.status(500).json({ error: "OPENAI_API_KEY is not configured on the server" });
     }
 
-    const system = `You are a ${level} Computer Science tutor.\nTopic: ${topic}\nMode: ${mode}\nTeach clearly and step-by-step.`;
+    const system = buildTutorSystemPrompt({ level, topic, mode });
 
     let timeoutHandle;
     const timeoutPromise = new Promise((_, reject) => {
@@ -1380,11 +1451,13 @@ app.post(
   tutorRateLimit,
   async (req, res) => {
     try {
-      const { message, level = "KS3", topic = "Python", mode = "Explain" } = req.body || {};
+      const { message, level: rawLevel = "KS3", topic: rawTopic = "", mode = "Explain" } = req.body || {};
 
       if (!message || typeof message !== "string") {
         return res.status(400).json({ error: "Missing 'message' string" });
       }
+      const level = normalizeTutorLevel(rawLevel);
+      const topic = normalizeTutorTopic(level, rawTopic);
 
       const access = await getTutorAccessContext(req.user.sub, mode, true);
       if (!access.allowed) {
@@ -1400,7 +1473,7 @@ app.post(
         return res.status(500).json({ error: "OPENAI_API_KEY is not configured on the server" });
       }
 
-      const system = `You are a ${level} Computer Science tutor.\nTopic: ${topic}\nMode: ${mode}\nTeach clearly and step-by-step.\nPrefer concise answers unless the user asks for more detail.`;
+      const system = buildTutorSystemPrompt({ level, topic, mode, preferConcise: true });
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");

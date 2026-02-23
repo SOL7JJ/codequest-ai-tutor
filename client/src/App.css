@@ -1119,6 +1119,7 @@ button:disabled {
   margin-top: 8px;
   height: 210px;
   overflow: auto;
+  min-width: 0;
 }
 
 .demoPlaceholder {
@@ -1135,6 +1136,31 @@ button:disabled {
   margin-top: 8px;
   font-size: 0.85rem;
   color: #395c86;
+}
+
+.demoReply {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.demoReply * {
+  max-width: 100%;
+}
+
+.demoReply pre {
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.demoReply code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.demoReply table {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
 }
 
 .demoActions {
