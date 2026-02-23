@@ -8,6 +8,14 @@ const LAST_EMAIL_KEY = "codequest_last_email";
 const CHECKOUT_NOTICE_KEY = "codequest_checkout_notice";
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const JS_RUN_TIMEOUT_MS = 4000;
+const DEMO_MAX_TRIES = 5;
+const DEMO_QUESTIONS = [
+  "How do Python loops work?",
+  "What is a variable in JavaScript with a simple example?",
+  "Explain arrays for a beginner with one coding example.",
+  "How do functions return values in Python?",
+  "What is the difference between while and for loops?",
+];
 const IDE_TEMPLATES = {
   python: `# Python starter
 name = "CodeQuest"
@@ -46,10 +54,12 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
-  const [demoQuestion, setDemoQuestion] = useState("How do Python loops work?");
+  const [demoQuestion, setDemoQuestion] = useState(DEMO_QUESTIONS[0]);
+  const [demoQuestionIndex, setDemoQuestionIndex] = useState(0);
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoReply, setDemoReply] = useState("");
   const [demoError, setDemoError] = useState("");
+  const [demoUsageCount, setDemoUsageCount] = useState(0);
 
   const [billingStatus, setBillingStatus] = useState("inactive");
   const [billingPlan, setBillingPlan] = useState("free");
@@ -461,6 +471,10 @@ export default function App() {
     if (e?.preventDefault) e.preventDefault();
     const question = demoQuestion.trim();
     if (!question || demoLoading) return;
+    if (demoUsageCount >= DEMO_MAX_TRIES) {
+      setDemoError("Demo limit reached (5/5). Upgrade or create an account to continue.");
+      return;
+    }
 
     setDemoLoading(true);
     setDemoReply("");
@@ -478,11 +492,20 @@ export default function App() {
         throw new Error(data?.error || fallback);
       }
       setDemoReply(data?.reply || "No demo response returned.");
+      setDemoUsageCount((count) => count + 1);
     } catch (err) {
       setDemoError(err?.message || "Failed to run demo");
     } finally {
       setDemoLoading(false);
     }
+  }
+
+  function handleResetDemoQuestion() {
+    setDemoQuestionIndex((prev) => {
+      const next = (prev + 1) % DEMO_QUESTIONS.length;
+      setDemoQuestion(DEMO_QUESTIONS[next]);
+      return next;
+    });
   }
 
   async function handleSignOut() {
@@ -1001,6 +1024,8 @@ error_text = stderr_capture.getvalue() + runtime_error
     billingDailyLimit == null || billingDailyRemaining == null
       ? null
       : `${billingDailyRemaining}/${billingDailyLimit} free turns left today`;
+  const demoRemaining = Math.max(DEMO_MAX_TRIES - demoUsageCount, 0);
+  const demoReachedLimit = demoUsageCount >= DEMO_MAX_TRIES;
 
   if (authChecking) {
     return (
@@ -1126,6 +1151,21 @@ error_text = stderr_capture.getvalue() + runtime_error
                   View Pricing
                 </button>
               </div>
+              <div className="heroLimitShell">
+                {demoReachedLimit && (
+                  <div className="heroLimitCta">
+                    <p>You reached the 5-question demo limit. Continue by upgrading or creating an account.</p>
+                    <div className="heroLimitActions">
+                      <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
+                        Upgrade
+                      </button>
+                      <button type="button" className="modeBtn" onClick={() => setAuthMode("signup")}>
+                        Create account
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <section className="authCard">
@@ -1140,18 +1180,44 @@ error_text = stderr_capture.getvalue() + runtime_error
                     value={demoQuestion}
                     onChange={(e) => setDemoQuestion(e.target.value)}
                     placeholder="Ask a coding question..."
+                    disabled={demoReachedLimit}
                   />
-                  <button type="submit" className="modeBtn" disabled={demoLoading}>
+                  <button type="submit" className="modeBtn" disabled={demoLoading || demoReachedLimit}>
                     {demoLoading ? "Thinking..." : "Try demo"}
                   </button>
                 </form>
-                {demoError && <p className="authError">{demoError}</p>}
-                {demoReply && (
-                  <div className="demoReply">
-                    <ReactMarkdown>{demoReply}</ReactMarkdown>
-                    <p className="demoHint">Create a free account to continue learning with saved progress.</p>
-                  </div>
-                )}
+                <p className="demoMeta">Demo questions left: {demoRemaining}/{DEMO_MAX_TRIES}</p>
+                <div className="demoReplyShell">
+                  {demoError && <p className="authError">{demoError}</p>}
+                  {demoReply ? (
+                    <div className="demoReply">
+                      <ReactMarkdown>{demoReply}</ReactMarkdown>
+                      <p className="demoHint">Create a free account to continue learning with saved progress.</p>
+                    </div>
+                  ) : (
+                    <p className="demoPlaceholder">Demo response will appear here.</p>
+                  )}
+                </div>
+                <div className="demoActions">
+                  <button
+                    type="button"
+                    className="modeBtn"
+                    onClick={() => {
+                      setDemoReply("");
+                      setDemoError("");
+                    }}
+                    disabled={!demoReply && !demoError}
+                  >
+                    Clear chat
+                  </button>
+                  <button
+                    type="button"
+                    className="modeBtn"
+                    onClick={handleResetDemoQuestion}
+                  >
+                    Reset question
+                  </button>
+                </div>
               </div>
 
               <div className="authModeRow">
@@ -1177,17 +1243,6 @@ error_text = stderr_capture.getvalue() + runtime_error
             </section>
           </section>
         </main>
-      </div>
-    );
-  }
-
-  if (billingLoading || historyLoading) {
-    return (
-      <div className="authShell">
-        <section className="authCard authLoadingCard">
-          <h1>Loading your workspace</h1>
-          <p>Syncing billing, chat, and progress...</p>
-        </section>
       </div>
     );
   }
@@ -1299,6 +1354,9 @@ error_text = stderr_capture.getvalue() + runtime_error
         </section>
       )}
       {billingError && <p className="authError">{billingError}</p>}
+      {(billingLoading || historyLoading) && (
+        <p className="inlineLoadingBanner">Syncing your workspace data...</p>
+      )}
 
       <div className="workspaceTabs">
         <button type="button" className={`modeBtn ${viewMode === "tutor" ? "active" : ""}`} onClick={() => setViewMode("tutor")}>Tutor Workspace</button>
@@ -1534,6 +1592,7 @@ error_text = stderr_capture.getvalue() + runtime_error
             <div className="chatColumn">
               <main className="chat" ref={chatRef}>
                 <div className="chatStream">
+                  {historyLoading && <p className="inlineLoadingText">Loading your recent chat history...</p>}
                   {isFreshSession && (
                     <div className="emptyState" aria-hidden="true">
                       <div className="emptyStateInner">

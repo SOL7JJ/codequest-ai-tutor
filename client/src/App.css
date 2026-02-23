@@ -704,6 +704,23 @@ button:disabled {
   color: var(--muted);
 }
 
+.inlineLoadingBanner {
+  margin: 8px 0 0;
+  border: 1px solid #d8e3f2;
+  border-radius: 10px;
+  background: #f4f8ff;
+  color: #35577f;
+  padding: 8px 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.inlineLoadingText {
+  margin: 0 0 8px;
+  color: #496384;
+  font-size: 0.86rem;
+}
+
 .ideLanguageTabs {
   margin-top: 10px;
   display: grid;
@@ -893,6 +910,13 @@ button:disabled {
   padding: 22px;
 }
 
+.landingCopy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
 .heroKicker {
   margin: 0;
   color: #376090;
@@ -907,18 +931,46 @@ button:disabled {
   font-family: "Sora", sans-serif;
   font-size: clamp(1.7rem, 2.6vw, 2.55rem);
   letter-spacing: -0.02em;
-  max-width: 14ch;
+  max-width: 16ch;
 }
 
 .heroText {
   margin: 12px 0 0;
   color: #4c617f;
-  max-width: 52ch;
+  max-width: 44ch;
   line-height: 1.45;
 }
 
 .heroActions {
   margin-top: 14px;
+}
+
+.heroLimitShell {
+  width: 100%;
+  margin-top: 12px;
+  min-height: 88px;
+}
+
+.heroLimitCta {
+  border: 1px solid #f3deb0;
+  border-radius: 12px;
+  background: #fff8e8;
+  color: #6f5408;
+  padding: 10px;
+  text-align: left;
+}
+
+.heroLimitCta p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #6f5408;
+}
+
+.heroLimitActions {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
 }
 
 .heroStats {
@@ -1057,11 +1109,26 @@ button:disabled {
 }
 
 .demoReply {
-  margin-top: 8px;
   border: 1px solid #d2deec;
   border-radius: 10px;
   background: #fff;
   padding: 10px;
+}
+
+.demoReplyShell {
+  margin-top: 8px;
+  height: 210px;
+  overflow: auto;
+}
+
+.demoPlaceholder {
+  margin: 0;
+  border: 1px dashed #cfdbeb;
+  border-radius: 10px;
+  background: #fff;
+  color: #547198;
+  padding: 10px;
+  font-size: 0.9rem;
 }
 
 .demoHint {
@@ -1070,14 +1137,18 @@ button:disabled {
   color: #395c86;
 }
 
-.authHint {
-  margin-top: 12px;
-  background: #fff8e8;
-  border: 1px solid #f3deb0;
-  color: #6f5408;
-  border-radius: 10px;
-  padding: 10px;
-  font-size: 0.92rem;
+.demoActions {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.demoMeta {
+  margin: 8px 0 0;
+  font-size: 0.84rem;
+  color: #4a6588;
+  font-weight: 600;
 }
 
 .authModeRow {
@@ -1295,6 +1366,33 @@ button:disabled {
     padding: 0 48px;
   }
 
+  .landing {
+    max-width: 640px;
+  }
+
+  .landingCopy,
+  .authCard {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .landingCopy h1 {
+    font-size: clamp(1.95rem, 9vw, 2.35rem);
+    max-width: 100%;
+    line-height: 1.14;
+  }
+
+  .heroText {
+    max-width: 100%;
+    font-size: 1rem;
+  }
+
+  .landingTag {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
   .workspaceTabs {
     width: 100%;
   }
@@ -1346,6 +1444,15 @@ button:disabled {
     padding: 12px;
   }
 
+  .demoReplyShell {
+    height: 170px;
+  }
+
+  .authCard .modeBtn,
+  .authCard .sendBtn {
+    min-height: 44px;
+  }
+
   .bubble {
     max-width: 100%;
   }
@@ -1377,5 +1484,33 @@ button:disabled {
   .ideLanguageTabs,
   .ideActions {
     grid-template-columns: 1fr;
+  }
+
+  .demoActions {
+    grid-template-columns: 1fr;
+  }
+
+  .heroLimitActions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .top {
+    padding: 0 42px;
+  }
+
+  .topMenuToggle {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+
+  .landingCopy h1 {
+    font-size: clamp(1.7rem, 9vw, 2.05rem);
+  }
+
+  .demoReplyShell {
+    height: 160px;
   }
 }
