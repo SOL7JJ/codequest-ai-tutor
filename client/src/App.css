@@ -39,11 +39,17 @@ body {
 
 .top {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: flex-start;
   gap: 16px;
-  flex-wrap: wrap;
+  position: relative;
+  padding: 0 58px;
   margin-bottom: 12px;
+}
+
+.brand {
+  width: 100%;
+  text-align: center;
 }
 
 .brand h1 {
@@ -54,15 +60,16 @@ body {
 }
 
 .subtitle {
-  margin: 8px 0 0;
+  margin: 8px auto 0;
   color: var(--muted);
   max-width: 620px;
   font-size: 1.02rem;
 }
 
 .topMenuWrap {
-  position: relative;
-  margin-left: auto;
+  position: absolute;
+  right: 0;
+  top: 0;
 }
 
 .topMenuToggle {
@@ -1263,6 +1270,10 @@ button:disabled {
 }
 
 @media (max-width: 768px) {
+  .top {
+    padding: 0 48px;
+  }
+
   .workspaceTabs {
     width: 100%;
   }
