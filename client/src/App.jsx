@@ -268,7 +268,7 @@ export default function App() {
     if (!user) return;
     setHistoryLoading(true);
     try {
-      const { res, data, rawText } = await fetchJson("/api/chat/history?limit=120", { method: "GET" });
+      const { res, data, rawText } = await fetchJson("/api/chat/history?limit=40", { method: "GET" });
       if (res.status === 401) {
         localStorage.removeItem(TOKEN_KEY);
         setUser(null);
@@ -953,13 +953,22 @@ error_text = stderr_capture.getvalue() + runtime_error
 
   useEffect(() => {
     if (!user) return;
+    // Keep login fast: load only essentials up front.
     fetchBillingStatus();
     fetchChatHistory();
+  }, [user, fetchBillingStatus, fetchChatHistory]);
+
+  useEffect(() => {
+    if (!user || viewMode !== "dashboard") return;
     fetchProgressOverview();
     fetchLessons();
     fetchStudentTasks();
-    if (user.role === "teacher") fetchTeacherResults();
-  }, [user, fetchBillingStatus, fetchChatHistory, fetchProgressOverview, fetchLessons, fetchStudentTasks, fetchTeacherResults]);
+  }, [user, viewMode, fetchProgressOverview, fetchLessons, fetchStudentTasks]);
+
+  useEffect(() => {
+    if (!user || user.role !== "teacher" || viewMode !== "teacher") return;
+    fetchTeacherResults();
+  }, [user, viewMode, fetchTeacherResults]);
 
   useEffect(() => {
     const onPopState = () => setCurrentPath(window.location.pathname || "/");
