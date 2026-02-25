@@ -605,6 +605,28 @@ async function runTutorAgent({
   return guardedReply;
 }
 
+async function runTutorDirect({ client, message, level, topic, mode, preferConcise = false }) {
+  const system = buildTutorSystemPrompt({ level, topic, mode, preferConcise });
+  const response = await client.responses.create({
+    model: AGENT_MODEL,
+    max_output_tokens: MAX_OUTPUT_TOKENS,
+    input: [
+      { role: "system", content: system },
+      { role: "user", content: message },
+    ],
+  });
+  return response.output_text || "(No output_text returned)";
+}
+
+async function runTutorWithFallback(params) {
+  try {
+    return await runTutorAgent(params);
+  } catch (agentErr) {
+    console.error("Tutor agent error. Falling back to direct mode:", agentErr);
+    return await runTutorDirect(params);
+  }
+}
+
 async function persistChatTurn({ userId, userMessage, assistantMessage, level, topic, mode }) {
   if (!pool) return;
   if (!userMessage?.trim() || !assistantMessage?.trim()) return;
@@ -1665,7 +1687,7 @@ app.post("/api/tutor", requireAuth, tutorRateLimit, async (req, res) => {
     let response;
     try {
       response = await Promise.race([
-        runTutorAgent({
+        runTutorWithFallback({
           client,
           userId: req.user.sub,
           message,
@@ -1734,7 +1756,7 @@ app.post(
       res.setHeader("Connection", "keep-alive");
       res.flushHeaders?.();
 
-      const reply = await runTutorAgent({
+      const reply = await runTutorWithFallback({
         client,
         userId: req.user.sub,
         message,
