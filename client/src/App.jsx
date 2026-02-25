@@ -470,32 +470,47 @@ export default function App() {
 
   async function handleEmailAuth(e) {
     if (e?.preventDefault) e.preventDefault();
+    if (authLoading) return;
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
+      setAuthError("Email and password are required.");
+      return;
+    }
 
     setAuthLoading(true);
     setAuthError("");
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 12000);
 
     try {
       const endpoint = authMode === "signup" ? "/api/auth/register" : "/api/auth/login";
       const payload =
         authMode === "signup"
-          ? { email: email.trim(), password, role: signupRole }
-          : { email: email.trim(), password };
+          ? { email: trimmedEmail, password, role: signupRole }
+          : { email: trimmedEmail, password };
 
       const { res, data, rawText } = await fetchJson(endpoint, {
         method: "POST",
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
       if (!res.ok) throw new Error(data?.error || rawText || `Auth failed (${res.status})`);
       if (!data?.token || !data?.user) throw new Error("Invalid auth response from server");
 
       localStorage.setItem(TOKEN_KEY, data.token);
-      localStorage.setItem(LAST_EMAIL_KEY, data.user?.email || email.trim());
+      localStorage.setItem(LAST_EMAIL_KEY, data.user?.email || trimmedEmail);
       setUser(data.user);
       setPassword("");
     } catch (err) {
-      setAuthError(err?.message || "Authentication failed.");
+      if (err?.name === "AbortError") {
+        setAuthError("Login is taking too long. Please try again.");
+      } else {
+        setAuthError(err?.message || "Authentication failed.");
+      }
     } finally {
+      window.clearTimeout(timeoutId);
       setAuthLoading(false);
     }
   }

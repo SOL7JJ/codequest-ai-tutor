@@ -15,6 +15,8 @@ const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 20);
 const DEMO_RATE_LIMIT_MAX = Number(process.env.DEMO_RATE_LIMIT_MAX || 5);
 const MAX_OUTPUT_TOKENS = Number(process.env.MAX_OUTPUT_TOKENS || 350);
 const FREE_TIER_DAILY_TURNS = Number(process.env.FREE_TIER_DAILY_TURNS || 5);
+const AGENT_MAX_STEPS = Number(process.env.AGENT_MAX_STEPS || 4);
+const AGENT_MODEL = process.env.AGENT_MODEL || "gpt-4o-mini";
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 const APP_URL = process.env.APP_URL || "http://localhost:5173";
@@ -338,6 +340,9 @@ function buildTutorSystemPrompt({ level, topic, mode, preferConcise = false }) {
     "If the user asks beyond the selected level, briefly acknowledge it and then explain at the selected level first.",
     "Use UK curriculum framing when helpful.",
     "Teach clearly and step-by-step.",
+    "You can call tools. Call tools when they improve correctness, level alignment, or personalization.",
+    "Do not mention tool internals to the student.",
+    "Never include topics outside the selected level unless framed as future learning only.",
   ];
 
   if (preferConcise) {
@@ -345,6 +350,259 @@ function buildTutorSystemPrompt({ level, topic, mode, preferConcise = false }) {
   }
 
   return promptParts.join("\n");
+}
+
+function getCrossLevelTopics(level) {
+  return ALLOWED_LEVELS.filter((entry) => entry !== level).flatMap((entry) => TOPICS_BY_LEVEL[entry] || []);
+}
+
+function extractFunctionCalls(response) {
+  const outputs = Array.isArray(response?.output) ? response.output : [];
+  return outputs.filter((item) => item?.type === "function_call" && item?.name);
+}
+
+function safeJsonParse(input, fallback = {}) {
+  if (typeof input !== "string" || !input.trim()) return fallback;
+  try {
+    return JSON.parse(input);
+  } catch {
+    return fallback;
+  }
+}
+
+async function getLearnerSnapshot(userId) {
+  if (!pool) {
+    return {
+      turnsLast14Days: 0,
+      topTopics: [],
+      averageQuizPercent: null,
+      averageCodeScore: null,
+      weakAreas: [],
+    };
+  }
+
+  const [eventsResult, quizResult, codeResult] = await Promise.all([
+    pool.query(
+      `SELECT COALESCE(NULLIF(topic, ''), 'General') AS topic, COUNT(*)::INT AS count
+       FROM learning_events
+       WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '14 days'
+       GROUP BY topic
+       ORDER BY count DESC, topic ASC
+       LIMIT 5`,
+      [userId]
+    ),
+    pool.query(
+      `SELECT AVG((score / NULLIF(max_score, 0)) * 100) AS avg_quiz_percent
+       FROM quiz_attempts
+       WHERE user_id = $1`,
+      [userId]
+    ),
+    pool.query(
+      `SELECT AVG(score) AS avg_code_score
+       FROM code_evaluations
+       WHERE user_id = $1`,
+      [userId]
+    ),
+  ]);
+
+  const topTopics = eventsResult.rows.map((row) => row.topic);
+  const turnsLast14Days = eventsResult.rows.reduce((sum, row) => sum + Number(row.count || 0), 0);
+  const averageQuizPercent = quizResult.rows[0]?.avg_quiz_percent == null ? null : Number(quizResult.rows[0].avg_quiz_percent);
+  const averageCodeScore = codeResult.rows[0]?.avg_code_score == null ? null : Number(codeResult.rows[0].avg_code_score);
+
+  const weakAreas = [];
+  if (averageQuizPercent != null && averageQuizPercent < 65) weakAreas.push("Quiz performance");
+  if (averageCodeScore != null && averageCodeScore < 6) weakAreas.push("Code quality");
+  if (!weakAreas.length && topTopics.length) weakAreas.push(topTopics[topTopics.length - 1]);
+
+  return {
+    turnsLast14Days,
+    topTopics,
+    averageQuizPercent,
+    averageCodeScore,
+    weakAreas,
+  };
+}
+
+async function executeTutorTool({ call, userId, level, topic, mode }) {
+  const args = safeJsonParse(call.arguments, {});
+  const allowedTopics = TOPICS_BY_LEVEL[level] || TOPICS_BY_LEVEL.KS3;
+
+  switch (call.name) {
+    case "get_allowed_topics":
+      return {
+        level,
+        selectedTopic: topic,
+        topics: allowedTopics,
+      };
+    case "generate_quiz":
+      return {
+        level,
+        topic: allowedTopics.includes(args.topic) ? args.topic : topic,
+        questions: generateQuizTemplate({
+          level,
+          topic: allowedTopics.includes(args.topic) ? args.topic : topic,
+          numQuestions: Number(args.numQuestions || 5),
+        }),
+      };
+    case "evaluate_code":
+      return evaluateCodeHeuristics(String(args.code || ""), String(args.language || "general"));
+    case "get_progress_snapshot":
+      return await getLearnerSnapshot(userId);
+    case "recommend_next_topic": {
+      const snapshot = await getLearnerSnapshot(userId);
+      const unseen = allowedTopics.filter((entry) => !snapshot.topTopics.includes(entry));
+      return {
+        level,
+        recommendedTopic: unseen[0] || allowedTopics[0],
+        reason: unseen[0]
+          ? "Suggested based on level curriculum coverage."
+          : "Suggested for spaced reinforcement within your current level.",
+      };
+    }
+    default:
+      return { error: `Unknown tool: ${call.name}` };
+  }
+}
+
+async function enforceLevelGuard({ client, reply, level, topic }) {
+  const crossLevelTopics = getCrossLevelTopics(level);
+  const hasCrossLevelLeak = crossLevelTopics.some((entry) =>
+    reply.toLowerCase().includes(entry.toLowerCase())
+  );
+  if (!hasCrossLevelLeak) return reply;
+
+  const rewritten = await client.responses.create({
+    model: AGENT_MODEL,
+    max_output_tokens: MAX_OUTPUT_TOKENS,
+    input: [
+      {
+        role: "system",
+        content: [
+          `Rewrite the tutor answer so it is strictly aligned to ${level} level.`,
+          `Selected topic: ${topic}.`,
+          "Remove advanced off-level references.",
+          "Keep it clear, student-friendly, and concise.",
+        ].join("\n"),
+      },
+      { role: "user", content: reply },
+    ],
+  });
+
+  return rewritten.output_text || reply;
+}
+
+async function runTutorAgent({
+  client,
+  userId,
+  message,
+  level,
+  topic,
+  mode,
+  preferConcise = false,
+}) {
+  const system = buildTutorSystemPrompt({ level, topic, mode, preferConcise });
+  const tools = [
+    {
+      type: "function",
+      name: "get_allowed_topics",
+      description: "Return allowed topics for the selected curriculum level.",
+      parameters: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      strict: true,
+    },
+    {
+      type: "function",
+      name: "generate_quiz",
+      description: "Generate curriculum-aligned quiz questions for the selected level/topic.",
+      parameters: {
+        type: "object",
+        properties: {
+          topic: { type: "string" },
+          numQuestions: { type: "number" },
+        },
+        additionalProperties: false,
+      },
+      strict: true,
+    },
+    {
+      type: "function",
+      name: "evaluate_code",
+      description: "Evaluate student code quality and return structured feedback.",
+      parameters: {
+        type: "object",
+        properties: {
+          language: { type: "string" },
+          code: { type: "string" },
+        },
+        required: ["code"],
+        additionalProperties: false,
+      },
+      strict: true,
+    },
+    {
+      type: "function",
+      name: "get_progress_snapshot",
+      description: "Return learner progress summary to personalize the response.",
+      parameters: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      strict: true,
+    },
+    {
+      type: "function",
+      name: "recommend_next_topic",
+      description: "Recommend the next topic within the currently selected level only.",
+      parameters: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      strict: true,
+    },
+  ];
+
+  let response = await client.responses.create({
+    model: AGENT_MODEL,
+    max_output_tokens: MAX_OUTPUT_TOKENS,
+    input: [
+      { role: "system", content: system },
+      { role: "user", content: message },
+    ],
+    tools,
+  });
+
+  for (let step = 0; step < AGENT_MAX_STEPS; step += 1) {
+    const functionCalls = extractFunctionCalls(response);
+    if (!functionCalls.length) break;
+
+    const toolOutputs = [];
+    for (const call of functionCalls) {
+      const output = await executeTutorTool({ call, userId, level, topic, mode });
+      toolOutputs.push({
+        type: "function_call_output",
+        call_id: call.call_id,
+        output: JSON.stringify(output),
+      });
+    }
+
+    response = await client.responses.create({
+      model: AGENT_MODEL,
+      max_output_tokens: MAX_OUTPUT_TOKENS,
+      previous_response_id: response.id,
+      input: toolOutputs,
+      tools,
+    });
+  }
+
+  const rawReply = response.output_text || "(No output_text returned)";
+  const guardedReply = await enforceLevelGuard({ client, reply: rawReply, level, topic });
+  return guardedReply;
 }
 
 async function persistChatTurn({ userId, userMessage, assistantMessage, level, topic, mode }) {
@@ -1397,8 +1655,6 @@ app.post("/api/tutor", requireAuth, tutorRateLimit, async (req, res) => {
       return res.status(500).json({ error: "OPENAI_API_KEY is not configured on the server" });
     }
 
-    const system = buildTutorSystemPrompt({ level, topic, mode });
-
     let timeoutHandle;
     const timeoutPromise = new Promise((_, reject) => {
       timeoutHandle = setTimeout(() => {
@@ -1409,13 +1665,13 @@ app.post("/api/tutor", requireAuth, tutorRateLimit, async (req, res) => {
     let response;
     try {
       response = await Promise.race([
-        client.responses.create({
-          model: "gpt-4o-mini",
-          max_output_tokens: MAX_OUTPUT_TOKENS,
-          input: [
-            { role: "system", content: system },
-            { role: "user", content: message },
-          ],
+        runTutorAgent({
+          client,
+          userId: req.user.sub,
+          message,
+          level,
+          topic,
+          mode,
         }),
         timeoutPromise,
       ]);
@@ -1423,7 +1679,7 @@ app.post("/api/tutor", requireAuth, tutorRateLimit, async (req, res) => {
       clearTimeout(timeoutHandle);
     }
 
-    const reply = response.output_text || "(No output_text returned)";
+    const reply = response || "(No output_text returned)";
     await incrementDailyUsage(req.user.sub);
     await persistChatTurn({
       userId: req.user.sub,
@@ -1473,29 +1729,25 @@ app.post(
         return res.status(500).json({ error: "OPENAI_API_KEY is not configured on the server" });
       }
 
-      const system = buildTutorSystemPrompt({ level, topic, mode, preferConcise: true });
-
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
       res.flushHeaders?.();
 
-      const stream = await client.responses.create({
-        model: "gpt-4o-mini",
-        max_output_tokens: MAX_OUTPUT_TOKENS,
-        stream: true,
-        input: [
-          { role: "system", content: system },
-          { role: "user", content: message },
-        ],
+      const reply = await runTutorAgent({
+        client,
+        userId: req.user.sub,
+        message,
+        level,
+        topic,
+        mode,
+        preferConcise: true,
       });
 
-      let streamedContent = "";
-      for await (const event of stream) {
-        if (event?.type === "response.output_text.delta" && typeof event.delta === "string") {
-          streamedContent += event.delta;
-          res.write(`data: ${JSON.stringify({ delta: event.delta })}\n\n`);
-        }
+      const streamedContent = String(reply || "(No output_text returned)");
+      const chunks = streamedContent.match(/.{1,120}/g) || [];
+      for (const chunk of chunks) {
+        res.write(`data: ${JSON.stringify({ delta: chunk })}\n\n`);
       }
 
       await incrementDailyUsage(req.user.sub);
