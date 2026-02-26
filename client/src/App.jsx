@@ -88,7 +88,6 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [isMobileViewport, setIsMobileViewport] = useState(() => window.innerWidth <= 768);
   const [mobileStartUnlocked, setMobileStartUnlocked] = useState(() => window.innerWidth > 768);
-  const [mobileToolsOpen, setMobileToolsOpen] = useState(() => window.innerWidth > 768);
   const [demoQuestion, setDemoQuestion] = useState(DEMO_QUESTIONS[0]);
   const [demoQuestionIndex, setDemoQuestionIndex] = useState(0);
   const [demoLoading, setDemoLoading] = useState(false);
@@ -598,7 +597,6 @@ export default function App() {
       const mobile = window.innerWidth <= 768;
       setIsMobileViewport(mobile);
       if (!mobile) setMobileStartUnlocked(true);
-      if (!mobile) setMobileToolsOpen(true);
     };
 
     updateViewport();
@@ -1754,7 +1752,7 @@ error_text = stderr_capture.getvalue() + runtime_error
           </div>
 
           <div className="layout">
-            <div className={`chatColumn ${isMobileViewport && mobileToolsOpen ? "mobileHidden" : ""}`}>
+            <div className={`chatColumn ${isMobileViewport && currentPath === "/tools" ? "mobileHidden" : ""}`}>
               <main className="chat" ref={chatRef}>
                 <div className="chatStream">
                   {historyLoading && <p className="inlineLoadingText">Loading your recent chat history...</p>}
@@ -1803,7 +1801,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                   type="button"
                   className="modeBtn mobileToolsToggle"
                   onClick={() => {
-                    setMobileToolsOpen(true);
+                    goToPath("/tools");
                     sideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
                 >
@@ -1812,14 +1810,14 @@ error_text = stderr_capture.getvalue() + runtime_error
               )}
             </div>
 
-            {(!isMobileViewport || mobileToolsOpen) && (
+            {(!isMobileViewport || currentPath === "/tools") && (
             <aside className="side" ref={sideRef}>
-              {isMobileViewport && mobileToolsOpen && (
+              {isMobileViewport && currentPath === "/tools" && (
                 <button
                   type="button"
                   className="modeBtn mobileBackToChatBtn"
                   onClick={() => {
-                    setMobileToolsOpen(false);
+                    goToPath("/");
                     chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
                 >
