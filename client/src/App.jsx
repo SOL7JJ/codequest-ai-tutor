@@ -120,6 +120,7 @@ export default function App() {
   const chatRef = useRef(null);
   const topMenuRef = useRef(null);
   const authCardRef = useRef(null);
+  const landingCopyRef = useRef(null);
 
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressError, setProgressError] = useState("");
@@ -578,6 +579,11 @@ export default function App() {
   function handleGetStarted() {
     setMobileStartUnlocked(true);
     authCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function handleBackToIntro() {
+    setMobileStartUnlocked(false);
+    landingCopyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   useEffect(() => {
@@ -1225,7 +1231,10 @@ error_text = stderr_capture.getvalue() + runtime_error
           </header>
 
           <section className="landingHero">
-            <div className="landingCopy">
+            <div
+              className={`landingCopy ${isMobileViewport && mobileStartUnlocked ? "landingCopyLocked" : ""}`}
+              ref={landingCopyRef}
+            >
               <p className="heroKicker">AI-Powered Learning Platform</p>
               <h1>Master Computer Science with structured, exam-ready coaching</h1>
               <p className="heroText">Learn coding faster with tutor chat, code evaluation, lesson tracking, and dashboards.</p>
@@ -1258,6 +1267,13 @@ error_text = stderr_capture.getvalue() + runtime_error
               className={`authCard ${isMobileViewport && !mobileStartUnlocked ? "authCardLocked" : ""}`}
               ref={authCardRef}
             >
+              {isMobileViewport && mobileStartUnlocked && (
+                <div className="authCardTopRow">
+                  <button type="button" className="modeBtn authBackBtn" onClick={handleBackToIntro}>
+                    Back to intro
+                  </button>
+                </div>
+              )}
               <h2>Start your learning session</h2>
               <p>Login or create an account to access your personalized tutor.</p>
               {checkoutNotice && <p className="paywallNotice authCheckoutNotice">{checkoutNotice}</p>}

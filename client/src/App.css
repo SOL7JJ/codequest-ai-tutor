@@ -1072,6 +1072,14 @@ button:disabled {
   letter-spacing: -0.01em;
 }
 
+.authCardTopRow {
+  margin-bottom: 10px;
+}
+
+.authBackBtn {
+  padding-inline: 14px;
+}
+
 .authCard p {
   margin: 10px 0 0;
   color: var(--muted);
@@ -1529,6 +1537,10 @@ button:disabled {
   }
 
   .authCardLocked {
+    display: none;
+  }
+
+  .landingCopyLocked {
     display: none;
   }
 
