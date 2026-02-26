@@ -950,11 +950,11 @@ button:disabled {
 }
 
 .heroActions {
-  margin-top: 20px;
+  margin-top: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
@@ -965,6 +965,14 @@ button:disabled {
   font-size: 1.12rem;
   font-weight: 800;
   letter-spacing: 0.01em;
+}
+
+.heroActions .modeBtn {
+  min-width: 250px;
+  min-height: 58px;
+  padding: 0 24px;
+  font-size: 1.08rem;
+  font-weight: 800;
 }
 
 .heroLimitShell {
@@ -1544,8 +1552,8 @@ button:disabled {
   .heroActions {
     width: 100%;
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
   }
 
   .heroActions .modeBtn,
@@ -1556,6 +1564,11 @@ button:disabled {
   .heroStartBtn {
     min-height: 60px;
     font-size: 1.1rem;
+  }
+
+  .heroActions .modeBtn {
+    min-height: 60px;
+    font-size: 1.06rem;
   }
 
   .authCardLocked {
