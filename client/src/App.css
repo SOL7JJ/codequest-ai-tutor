@@ -1074,6 +1074,9 @@ button:disabled {
 
 .authCardTopRow {
   margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .authBackBtn {
@@ -1089,6 +1092,18 @@ button:disabled {
 .authBackBtn:hover {
   background: linear-gradient(180deg, #dfeeff 0%, #d3e5ff 100%);
   box-shadow: 0 8px 16px rgba(27, 86, 156, 0.2);
+}
+
+.authQuickBtn {
+  font-weight: 800;
+}
+
+.authOnlyPage {
+  max-width: 720px;
+}
+
+.authOnlyCard {
+  margin: 0 auto;
 }
 
 .authCard p {
@@ -1582,6 +1597,10 @@ button:disabled {
 
   .landingCopyLocked {
     display: none;
+  }
+
+  .authCardTopRow {
+    grid-template-columns: 1fr 1fr 1fr;
   }
 
   .bubble {

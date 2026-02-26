@@ -586,6 +586,11 @@ export default function App() {
     landingCopyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function openAuthPage(nextMode = "login") {
+    setAuthMode(nextMode);
+    goToPath("/auth");
+  }
+
   useEffect(() => {
     const updateViewport = () => {
       const mobile = window.innerWidth <= 768;
@@ -1219,6 +1224,70 @@ error_text = stderr_capture.getvalue() + runtime_error
   }
 
   if (!user) {
+    if (currentPath === "/auth") {
+      return (
+        <div className="authShell">
+          <main className="landing authOnlyPage">
+            <header className="landingTop">
+              <div className="landingBrand">
+                <span className="landingLogo">CQ</span>
+                <span>CodeQuest AI Tutor</span>
+              </div>
+              <button type="button" className="modeBtn" onClick={() => goToPath("/")}>
+                Back
+              </button>
+            </header>
+
+            <section className="authCard authOnlyCard">
+              <h2>Start your learning session</h2>
+              <p>Login or create an account to access your personalized tutor.</p>
+              {checkoutNotice && <p className="paywallNotice authCheckoutNotice">{checkoutNotice}</p>}
+
+              <div className="authModeRow">
+                <button
+                  type="button"
+                  className={`modeBtn ${authMode === "login" ? "active" : ""}`}
+                  onClick={() => setAuthMode("login")}
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  className={`modeBtn ${authMode === "signup" ? "active" : ""}`}
+                  onClick={() => setAuthMode("signup")}
+                >
+                  Sign Up
+                </button>
+              </div>
+
+              <form className="authForm" onSubmit={handleEmailAuth}>
+                <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <input
+                  type="password"
+                  placeholder="Password (min 6 chars)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+                {authMode === "signup" && (
+                  <select value={signupRole} onChange={(e) => setSignupRole(e.target.value)}>
+                    <option value="student">Student account</option>
+                    <option value="teacher">Teacher account</option>
+                  </select>
+                )}
+                <button type="submit" className="sendBtn" disabled={authLoading}>
+                  {authLoading ? "Please wait..." : authMode === "signup" ? "Create account" : "Login"}
+                </button>
+              </form>
+
+              {authError && <p className="authError">{authError}</p>}
+            </section>
+          </main>
+        </div>
+      );
+    }
+
     return (
       <div className="authShell">
         <main className="landing">
@@ -1272,11 +1341,16 @@ error_text = stderr_capture.getvalue() + runtime_error
                   <button type="button" className="modeBtn authBackBtn" onClick={handleBackToIntro}>
                     Back to intro
                   </button>
+                  <button type="button" className="modeBtn authQuickBtn" onClick={() => openAuthPage("login")}>
+                    Login
+                  </button>
+                  <button type="button" className="modeBtn authQuickBtn" onClick={() => openAuthPage("signup")}>
+                    Sign Up
+                  </button>
                 </div>
               )}
               <h2>Start your learning session</h2>
-              <p>Login or create an account to access your personalized tutor.</p>
-              {checkoutNotice && <p className="paywallNotice authCheckoutNotice">{checkoutNotice}</p>}
+              <p>Try a demo question first. Use Login or Sign Up to continue in your full workspace.</p>
 
               <div className="demoCard">
                 <h3>Try one question first</h3>
@@ -1329,27 +1403,6 @@ error_text = stderr_capture.getvalue() + runtime_error
                   </button>
                 </div>
               </div>
-
-              <div className="authModeRow">
-                <button type="button" className={`modeBtn ${authMode === "login" ? "active" : ""}`} onClick={() => setAuthMode("login")}>Login</button>
-                <button type="button" className={`modeBtn ${authMode === "signup" ? "active" : ""}`} onClick={() => setAuthMode("signup")}>Sign Up</button>
-              </div>
-
-              <form className="authForm" onSubmit={handleEmailAuth}>
-                <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                <input type="password" placeholder="Password (min 6 chars)" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
-                {authMode === "signup" && (
-                  <select value={signupRole} onChange={(e) => setSignupRole(e.target.value)}>
-                    <option value="student">Student account</option>
-                    <option value="teacher">Teacher account</option>
-                  </select>
-                )}
-                <button type="submit" className="sendBtn" disabled={authLoading}>
-                  {authLoading ? "Please wait..." : authMode === "signup" ? "Create account" : "Login"}
-                </button>
-              </form>
-
-              {authError && <p className="authError">{authError}</p>}
             </section>
           </section>
         </main>
