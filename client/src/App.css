@@ -1077,7 +1077,18 @@ button:disabled {
 }
 
 .authBackBtn {
-  padding-inline: 14px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #8fb1dd;
+  background: linear-gradient(180deg, #e9f2ff 0%, #dceaff 100%);
+  color: #123e73;
+  font-weight: 800;
+  box-shadow: 0 6px 14px rgba(27, 86, 156, 0.14);
+}
+
+.authBackBtn:hover {
+  background: linear-gradient(180deg, #dfeeff 0%, #d3e5ff 100%);
+  box-shadow: 0 8px 16px rgba(27, 86, 156, 0.2);
 }
 
 .authCard p {
