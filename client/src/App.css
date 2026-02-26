@@ -943,6 +943,15 @@ button:disabled {
 
 .heroActions {
   margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.heroStartBtn {
+  min-width: 200px;
 }
 
 .heroLimitShell {
@@ -1408,6 +1417,11 @@ button:disabled {
     line-height: 1.14;
   }
 
+  .landingCopy {
+    min-height: calc(100dvh - 120px);
+    justify-content: center;
+  }
+
   .heroText {
     max-width: 100%;
     font-size: 1rem;
@@ -1477,6 +1491,18 @@ button:disabled {
   .authCard .modeBtn,
   .authCard .sendBtn {
     min-height: 44px;
+  }
+
+  .heroActions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .heroActions .modeBtn,
+  .heroStartBtn {
+    width: 100%;
   }
 
   .bubble {

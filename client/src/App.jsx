@@ -117,6 +117,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const chatRef = useRef(null);
   const topMenuRef = useRef(null);
+  const authCardRef = useRef(null);
 
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressError, setProgressError] = useState("");
@@ -570,6 +571,10 @@ export default function App() {
   function handleClearChat() {
     setMessages([DEFAULT_WELCOME_MESSAGE]);
     setInput("");
+  }
+
+  function handleGetStarted() {
+    authCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function handleStartSubscription(targetPlan = "pro") {
@@ -1210,6 +1215,9 @@ error_text = stderr_capture.getvalue() + runtime_error
               <h1>Master Computer Science with structured, exam-ready coaching</h1>
               <p className="heroText">Learn coding faster with tutor chat, code evaluation, lesson tracking, and dashboards.</p>
               <div className="heroActions">
+                <button type="button" className="sendBtn heroStartBtn" onClick={handleGetStarted}>
+                  Let's get started
+                </button>
                 <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
                   View Pricing
                 </button>
@@ -1231,7 +1239,7 @@ error_text = stderr_capture.getvalue() + runtime_error
               </div>
             </div>
 
-            <section className="authCard">
+            <section className="authCard" ref={authCardRef}>
               <h2>Start your learning session</h2>
               <p>Login or create an account to access your personalized tutor.</p>
               {checkoutNotice && <p className="paywallNotice authCheckoutNotice">{checkoutNotice}</p>}
