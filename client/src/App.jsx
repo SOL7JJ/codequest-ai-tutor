@@ -1343,25 +1343,64 @@ error_text = stderr_capture.getvalue() + runtime_error
               <img className="landingLogoImage" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
               <span>CodeQuest AI Tutor</span>
             </div>
-            <span className="landingTag">Built for KS3 · GCSE · A-Level</span>
+            <button type="button" className="modeBtn landingLoginBtn" onClick={() => openAuthPage("login")}>
+              Login
+            </button>
           </header>
+          <div className="landingTagRow">
+            <span className="landingTag">Built for KS3 · GCSE · A-Level</span>
+          </div>
 
           <section className="landingHero">
             <div
               className={`landingCopy ${isMobileViewport && mobileStartUnlocked ? "landingCopyLocked" : ""}`}
               ref={landingCopyRef}
             >
-              <p className="heroKicker">AI-Powered Learning Platform</p>
-              <h1>Master Computer Science and Programming with structured coaching</h1>
-              <p className="heroText">Learn coding faster with tutor chat, code evaluation, lesson tracking, and dashboards.</p>
+              <p className="heroKicker">Designed by a Computer Science teacher using AI coaching.</p>
+              <h1>Learn Coding Faster with AI-Powered Tutoring</h1>
+              <div className="landingChecklist">
+                <p>Practice coding challenges</p>
+                <p>Get instant AI feedback</p>
+                <p>Track your progress</p>
+              </div>
               <div className="heroActions">
                 <button type="button" className="sendBtn heroStartBtn" onClick={handleGetStarted}>
-                  Let's get started
+                  Start Free Lesson
                 </button>
                 <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
                   View Pricing
                 </button>
               </div>
+              <p className="heroCredit">No credit card required</p>
+
+              <div className="landingFeatureCards">
+                <article>
+                  <img className="featureIcon" src="/icons/apple-touch-icon.png" alt="" />
+                  <h3>AI Tutor Chat</h3>
+                  <p>Get help and answers anytime.</p>
+                </article>
+                <article>
+                  <img className="featureIcon" src="/icons/apple-touch-icon.png" alt="" />
+                  <h3>Instant Code Feedback</h3>
+                  <p>Receive immediate AI feedback on your code.</p>
+                </article>
+                <article>
+                  <img className="featureIcon" src="/icons/apple-touch-icon.png" alt="" />
+                  <h3>Progress Tracking</h3>
+                  <p>Track your learning progress and achievements.</p>
+                </article>
+              </div>
+
+              <div className="landingTrust">
+                <h3>Trusted by students worldwide</h3>
+                <p>4.9 ★★★★★ · 1000+ reviews</p>
+              </div>
+
+              <div className="landingQuote">
+                <p>“CodeQuest has made learning to code much easier. The AI tutor is always there when I’m stuck.”</p>
+                <strong>Sarah, KS3</strong>
+              </div>
+
               <div className="heroLimitShell">
                 {demoReachedLimit && (
                   <div className="heroLimitCta">
@@ -1378,6 +1417,10 @@ error_text = stderr_capture.getvalue() + runtime_error
                 )}
               </div>
             </div>
+
+            <aside className={`landingVisual ${isMobileViewport && mobileStartUnlocked ? "landingCopyLocked" : ""}`}>
+              <img src="/og-robot-v2.png" alt="CodeQuest AI Tutor preview" />
+            </aside>
 
             <section
               className={`authCard ${isMobileViewport && !mobileStartUnlocked ? "authCardLocked" : ""}`}

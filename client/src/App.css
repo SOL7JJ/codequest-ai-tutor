@@ -915,7 +915,7 @@ button:disabled {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 22px;
+  margin-bottom: 12px;
 }
 
 .landingBrand {
@@ -961,6 +961,17 @@ button:disabled {
   letter-spacing: 0.01em;
 }
 
+.landingTagRow {
+  margin-bottom: 14px;
+}
+
+.landingLoginBtn {
+  min-width: 160px;
+  min-height: 58px;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
 .landingHero {
   display: grid;
   grid-template-columns: 1.2fr 0.88fr;
@@ -979,17 +990,16 @@ button:disabled {
 .landingCopy {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  align-items: flex-start;
+  text-align: left;
 }
 
 .heroKicker {
   margin: 0;
-  color: #376090;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.13em;
-  font-size: 0.78rem;
+  color: #385c87;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  font-size: 1.05rem;
 }
 
 .landingCopy h1 {
@@ -997,24 +1007,44 @@ button:disabled {
   font-family: var(--font-display);
   font-size: clamp(2.1rem, 4vw, 3.25rem);
   letter-spacing: -0.03em;
-  line-height: 1.08;
-  max-width: 14ch;
+  line-height: 1.1;
+  max-width: 16ch;
   color: #122a4d;
 }
 
-.heroText {
-  margin: 16px 0 0;
-  color: #465e7f;
-  max-width: 34ch;
-  font-size: 1.2rem;
-  line-height: 1.5;
+.landingChecklist {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.landingChecklist p {
+  margin: 0;
+  color: #254a77;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.landingChecklist p::before {
+  content: "✓";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #e2f0ff;
+  color: #1f5cab;
+  font-size: 0.9rem;
+  font-weight: 900;
 }
 
 .heroActions {
-  margin-top: 22px;
+  margin-top: 18px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 14px;
   flex-wrap: wrap;
 }
@@ -1026,6 +1056,106 @@ button:disabled {
   font-size: 1.12rem;
   font-weight: 800;
   letter-spacing: 0.01em;
+}
+
+.heroCredit {
+  margin: 8px 0 0;
+  color: #4f6a8d;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.landingVisual {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #d6e2f0;
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.landingVisual img {
+  width: 100%;
+  height: auto;
+  border-radius: 16px;
+}
+
+.landingFeatureCards {
+  margin-top: 18px;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.landingFeatureCards article {
+  border: 1px solid #d8e2ef;
+  border-radius: 14px;
+  background: #fbfdff;
+  padding: 12px;
+  text-align: center;
+}
+
+.featureIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid #c8d9ec;
+}
+
+.landingFeatureCards h3 {
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.landingFeatureCards p {
+  margin: 6px 0 0;
+  color: #4d6688;
+  font-size: 0.95rem;
+}
+
+.landingTrust {
+  margin-top: 18px;
+  width: 100%;
+  text-align: center;
+}
+
+.landingTrust h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.85rem;
+  letter-spacing: -0.01em;
+}
+
+.landingTrust p {
+  margin: 6px 0 0;
+  color: #355c89;
+  font-weight: 700;
+}
+
+.landingQuote {
+  margin-top: 14px;
+  width: 100%;
+  border: 1px solid #d5e0ee;
+  border-radius: 16px;
+  background: #f9fcff;
+  padding: 14px;
+}
+
+.landingQuote p {
+  margin: 0;
+  color: #27466f;
+  font-size: 1rem;
+}
+
+.landingQuote strong {
+  margin-top: 10px;
+  display: inline-block;
+  color: #1a3f6d;
 }
 
 .heroLimitShell {
@@ -1123,6 +1253,10 @@ button:disabled {
   margin: 6px 0 0;
   font-size: 0.88rem;
   color: var(--muted);
+}
+
+.landingHero > .authCard {
+  grid-column: 1 / -1;
 }
 
 .authCard h2 {
@@ -1572,6 +1706,38 @@ button:disabled {
     max-width: 100%;
     font-size: 1.05rem;
     margin-top: 14px;
+  }
+
+  .landingTagRow {
+    margin-bottom: 10px;
+  }
+
+  .landingLoginBtn {
+    min-width: 124px;
+    min-height: 48px;
+    font-size: 1rem;
+  }
+
+  .landingCopy {
+    align-items: center;
+    text-align: center;
+  }
+
+  .landingChecklist {
+    width: 100%;
+    text-align: left;
+  }
+
+  .landingVisual {
+    display: none;
+  }
+
+  .landingFeatureCards {
+    grid-template-columns: 1fr;
+  }
+
+  .landingTrust h3 {
+    font-size: 1.55rem;
   }
 
   .landingTag {
