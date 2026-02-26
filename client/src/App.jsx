@@ -178,7 +178,7 @@ export default function App() {
       { label: "Explain loops", text: "Explain loops in Python with an example." },
       { label: "Arrays", text: "What is an array? Explain for KS3 with an example." },
       { label: "Python errors", text: "I got TypeError in Python. Help me debug." },
-      { label: "Explain loops", text: "Explain loops in Python with an example." },
+      { label: "Functions", text: "Explain functions with a simple Python example." },
     ],
     []
   );
