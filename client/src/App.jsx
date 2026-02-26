@@ -1280,7 +1280,11 @@ error_text = stderr_capture.getvalue() + runtime_error
 
               <div className="demoCard">
                 <h3>Try one question first</h3>
-                <p className="demoGuide">How to use this demo: Try demo → Clear chat → Reset question → Try demo.</p>
+                <p className="demoGuide">
+                  How to use this demo : press button.
+                  <br />
+                  try demo, clear chat , reset question
+                </p>
                 <form className="inlineForm" onSubmit={handleDemoAsk}>
                   <input
                     value={demoQuestion}
@@ -1288,7 +1292,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                     placeholder="Ask a coding question..."
                     disabled={demoReachedLimit}
                   />
-                  <button type="submit" className="modeBtn" disabled={demoLoading || demoReachedLimit}>
+                  <button type="submit" className="modeBtn demoTryBtn" disabled={demoLoading || demoReachedLimit}>
                     {demoLoading ? "Thinking..." : "Try demo"}
                   </button>
                 </form>

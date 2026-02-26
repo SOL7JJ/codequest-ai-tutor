@@ -1233,6 +1233,18 @@ button:disabled {
   font-weight: 600;
 }
 
+.demoTryBtn {
+  border-color: #1f5dad;
+  background: linear-gradient(150deg, #2f69b6 0%, #18539d 100%);
+  color: #f8fbff;
+  font-weight: 800;
+  box-shadow: 0 10px 20px rgba(31, 87, 159, 0.24);
+}
+
+.demoTryBtn:hover {
+  box-shadow: 0 12px 22px rgba(31, 87, 159, 0.3);
+}
+
 .authModeRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
