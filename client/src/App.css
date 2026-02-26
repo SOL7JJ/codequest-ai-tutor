@@ -407,6 +407,15 @@ button:disabled {
   background: #fff;
 }
 
+.demoQuestionInput {
+  width: 100%;
+  resize: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
 .tips textarea {
   width: 100%;
   resize: vertical;
