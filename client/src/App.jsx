@@ -178,7 +178,7 @@ export default function App() {
       { label: "Explain loops", text: "Explain loops in Python with an example." },
       { label: "Arrays", text: "What is an array? Explain for KS3 with an example." },
       { label: "Python errors", text: "I got TypeError in Python. Help me debug." },
-      { label: "Hint me", text: "Give me a hint to solve FizzBuzz without giving full code." },
+      { label: "Explain loops", text: "Explain loops in Python with an example." },
     ],
     []
   );
@@ -1771,8 +1771,8 @@ error_text = stderr_capture.getvalue() + runtime_error
           {currentPath !== "/tools" && (
             <div className="starters">
               <span className="startersLabel">Try:</span>
-              {starterPrompts.map((p) => (
-                <button key={p.label} type="button" onClick={() => sendMessage(null, p.text)} disabled={loading}>{p.label}</button>
+              {starterPrompts.map((p, idx) => (
+                <button key={`${p.label}-${idx}`} type="button" onClick={() => sendMessage(null, p.text)} disabled={loading}>{p.label}</button>
               ))}
               {isMobileViewport && (
                 <button type="button" className="modeBtn starterLogoutBtn" onClick={handleSignOut}>
