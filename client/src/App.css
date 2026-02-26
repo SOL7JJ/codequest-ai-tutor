@@ -513,6 +513,10 @@ button:disabled {
   justify-content: flex-end;
 }
 
+.chatStream.freshSession {
+  justify-content: flex-start;
+}
+
 .msg {
   display: flex;
   margin: 11px 0;

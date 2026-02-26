@@ -1761,9 +1761,9 @@ error_text = stderr_capture.getvalue() + runtime_error
           <div className="layout">
             <div className={`chatColumn ${isMobileViewport && currentPath === "/tools" ? "mobileHidden" : ""}`}>
               <main className="chat" ref={chatRef}>
-                <div className="chatStream">
+                <div className={`chatStream ${isFreshSession ? "freshSession" : ""}`}>
                   {historyLoading && <p className="inlineLoadingText">Loading your recent chat history...</p>}
-                  {isFreshSession && (
+                  {isFreshSession && !isMobileViewport && (
                     <div className="emptyState" aria-hidden="true">
                       <div className="emptyStateInner">
                         <h3>Your learning session starts here</h3>
