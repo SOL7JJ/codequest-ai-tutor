@@ -952,6 +952,11 @@ button:disabled {
 
 .heroStartBtn {
   min-width: 200px;
+  min-height: 52px;
+  padding: 0 18px;
+  font-size: 1.04rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
 }
 
 .heroLimitShell {
@@ -1503,6 +1508,15 @@ button:disabled {
   .heroActions .modeBtn,
   .heroStartBtn {
     width: 100%;
+  }
+
+  .heroStartBtn {
+    min-height: 56px;
+    font-size: 1.08rem;
+  }
+
+  .authCardLocked {
+    display: none;
   }
 
   .bubble {

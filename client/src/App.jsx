@@ -86,6 +86,8 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [isMobileViewport, setIsMobileViewport] = useState(() => window.innerWidth <= 768);
+  const [mobileStartUnlocked, setMobileStartUnlocked] = useState(() => window.innerWidth > 768);
   const [demoQuestion, setDemoQuestion] = useState(DEMO_QUESTIONS[0]);
   const [demoQuestionIndex, setDemoQuestionIndex] = useState(0);
   const [demoLoading, setDemoLoading] = useState(false);
@@ -574,8 +576,21 @@ export default function App() {
   }
 
   function handleGetStarted() {
+    setMobileStartUnlocked(true);
     authCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+
+  useEffect(() => {
+    const updateViewport = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobileViewport(mobile);
+      if (!mobile) setMobileStartUnlocked(true);
+    };
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
+  }, []);
 
   async function handleStartSubscription(targetPlan = "pro") {
     setBillingActionLoading(true);
@@ -1239,7 +1254,10 @@ error_text = stderr_capture.getvalue() + runtime_error
               </div>
             </div>
 
-            <section className="authCard" ref={authCardRef}>
+            <section
+              className={`authCard ${isMobileViewport && !mobileStartUnlocked ? "authCardLocked" : ""}`}
+              ref={authCardRef}
+            >
               <h2>Start your learning session</h2>
               <p>Login or create an account to access your personalized tutor.</p>
               {checkoutNotice && <p className="paywallNotice authCheckoutNotice">{checkoutNotice}</p>}
