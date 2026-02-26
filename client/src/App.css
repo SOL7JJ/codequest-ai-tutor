@@ -1153,6 +1153,17 @@ button:disabled {
   letter-spacing: -0.01em;
 }
 
+.demoGuide {
+  margin: 8px 0 0;
+  border: 1px dashed #c8d9ee;
+  border-radius: 10px;
+  background: #f2f7ff;
+  color: #2f4f76;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .demoReply {
   border: 1px solid #d2deec;
   border-radius: 10px;

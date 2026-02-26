@@ -1280,6 +1280,7 @@ error_text = stderr_capture.getvalue() + runtime_error
 
               <div className="demoCard">
                 <h3>Try one question first</h3>
+                <p className="demoGuide">How to use this demo: Try demo → Clear chat → Reset question → Try demo.</p>
                 <form className="inlineForm" onSubmit={handleDemoAsk}>
                   <input
                     value={demoQuestion}
