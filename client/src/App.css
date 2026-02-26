@@ -1625,7 +1625,7 @@ button:disabled {
   }
 
   .chatColumn {
-    padding-bottom: calc(150px + env(safe-area-inset-bottom));
+    padding-bottom: calc(190px + env(safe-area-inset-bottom));
   }
 
   .layout,
@@ -1727,12 +1727,17 @@ button:disabled {
 
   .chatDock.mobile {
     position: fixed;
-    left: 10px;
-    right: 10px;
-    bottom: calc(8px + env(safe-area-inset-bottom));
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 60;
     display: grid;
     gap: 8px;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+    background: #e7f0fb;
+    border-top: 1px solid #cfdced;
+    box-shadow: 0 -10px 24px rgba(18, 43, 80, 0.12);
+    overflow: hidden;
   }
 
   .composer {
