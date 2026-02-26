@@ -1800,16 +1800,21 @@ error_text = stderr_capture.getvalue() + runtime_error
                 </form>
 
                 {isMobileViewport && (
-                  <button
-                    type="button"
-                    className="modeBtn mobileToolsToggle"
-                    onClick={() => {
-                      goToPath("/tools");
-                      sideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }}
-                  >
-                    Show tools & IDE
-                  </button>
+                  <div className="mobileDockActions">
+                    <button
+                      type="button"
+                      className="modeBtn mobileToolsToggle"
+                      onClick={() => {
+                        goToPath("/tools");
+                        sideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}
+                    >
+                      Show tools & IDE
+                    </button>
+                    <button type="button" className="modeBtn mobileLogoutBtn" onClick={handleSignOut}>
+                      Log out
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
