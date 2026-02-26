@@ -683,6 +683,23 @@ export default function App() {
       });
     };
 
+    const revealAssistantContent = async (fullText) => {
+      const text = String(fullText || "");
+      if (!text) {
+        setAssistantContent("");
+        return;
+      }
+
+      const chunkSize = text.length > 1400 ? 28 : text.length > 700 ? 18 : 12;
+      let visibleLength = 0;
+
+      while (visibleLength < text.length) {
+        visibleLength = Math.min(visibleLength + chunkSize, text.length);
+        setAssistantContent(text.slice(0, visibleLength));
+        await new Promise((resolve) => window.setTimeout(resolve, 18));
+      }
+    };
+
     const nonStreamCall = async () => {
       const { res, data, rawText } = await fetchJson("/api/tutor", {
         method: "POST",
@@ -707,7 +724,7 @@ export default function App() {
 
       if (!res.ok) throw new Error(data?.error || rawText || `API error (${res.status})`);
       const reply = data?.reply ?? data?.message ?? data?.content ?? "No reply returned.";
-      setAssistantContent(reply);
+      await revealAssistantContent(reply);
     };
 
     try {
