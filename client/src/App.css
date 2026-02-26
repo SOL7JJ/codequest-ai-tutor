@@ -574,6 +574,7 @@ button:disabled {
   color: #e9f2ff;
   padding: 10px;
   border-radius: 10px;
+  max-width: 100%;
   overflow-x: auto;
 }
 
@@ -1571,7 +1572,7 @@ button:disabled {
   }
 
   .wrap {
-    padding: 12px 10px 10px;
+    padding: 12px 10px calc(24px + env(safe-area-inset-bottom));
   }
 
   .brand h1 {
@@ -1597,6 +1598,13 @@ button:disabled {
     min-height: 320px;
     border-radius: 14px;
     padding: 12px;
+  }
+
+  .bubble pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow-x: hidden;
   }
 
   .starters {
