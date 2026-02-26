@@ -941,6 +941,15 @@ button:disabled {
   font-weight: 800;
 }
 
+.landingLogoImage {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid #c3d4e8;
+  background: #fff;
+}
+
 .landingTag {
   border: 1px solid #c8d5e6;
   border-radius: 999px;

@@ -1169,7 +1169,7 @@ error_text = stderr_capture.getvalue() + runtime_error
         <main className="landing pricingPage">
           <header className="landingTop">
             <div className="landingBrand">
-              <span className="landingLogo">CQ</span>
+              <img className="landingLogoImage" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
               <span>CodeQuest AI Tutor</span>
             </div>
             <button type="button" className="modeBtn" onClick={() => goToPath("/")}>
@@ -1261,7 +1261,7 @@ error_text = stderr_capture.getvalue() + runtime_error
           <main className="landing authOnlyPage">
             <header className="landingTop">
               <div className="landingBrand">
-                <span className="landingLogo">CQ</span>
+                <img className="landingLogoImage" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
                 <span>CodeQuest AI Tutor</span>
               </div>
               <button type="button" className="modeBtn" onClick={() => goToPath("/")}>
@@ -1324,7 +1324,7 @@ error_text = stderr_capture.getvalue() + runtime_error
         <main className="landing">
           <header className="landingTop">
             <div className="landingBrand">
-              <span className="landingLogo">CQ</span>
+              <img className="landingLogoImage" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
               <span>CodeQuest AI Tutor</span>
             </div>
             <span className="landingTag">Built for KS3 · GCSE · A-Level</span>
