@@ -10,6 +10,8 @@ import pool from "./db/index.js";
 dotenv.config({ quiet: true });
 
 const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 20000);
+const DEMO_TIMEOUT_MS = Number(process.env.DEMO_TIMEOUT_MS || 9000);
+const DEMO_CACHE_TTL_MS = Number(process.env.DEMO_CACHE_TTL_MS || 1000 * 60 * 60 * 6);
 const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60000);
 const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 20);
 const DEMO_RATE_LIMIT_MAX = Number(process.env.DEMO_RATE_LIMIT_MAX || 5);
@@ -853,6 +855,47 @@ function generateQuizTemplate({ topic = "Python", level = "KS3", numQuestions = 
 
 const tutorRateLimitState = new Map();
 const demoRateLimitState = new Map();
+const demoReplyCache = new Map();
+
+function normalizeDemoMessageKey(message = "") {
+  return String(message).trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function getCachedDemoReply(cacheKey) {
+  const cached = demoReplyCache.get(cacheKey);
+  if (!cached) return "";
+  if (Date.now() > cached.expiresAt) {
+    demoReplyCache.delete(cacheKey);
+    return "";
+  }
+  return cached.reply;
+}
+
+function setCachedDemoReply(cacheKey, reply) {
+  if (!reply) return;
+  demoReplyCache.set(cacheKey, {
+    reply,
+    expiresAt: Date.now() + DEMO_CACHE_TTL_MS,
+  });
+  if (demoReplyCache.size > 120) {
+    const oldestKey = demoReplyCache.keys().next().value;
+    if (oldestKey) demoReplyCache.delete(oldestKey);
+  }
+}
+
+function buildDemoFallbackReply(message = "") {
+  const text = String(message).toLowerCase();
+  if (text.includes("loop")) {
+    return "A loop repeats code. Use `for` when count is known, `while` when it depends on a condition.\nNext step: try printing numbers 1 to 5 with a `for` loop.";
+  }
+  if (text.includes("array") || text.includes("list")) {
+    return "An array/list stores multiple values in one variable.\nNext step: create one list and print the first item.";
+  }
+  if (text.includes("function")) {
+    return "A function is reusable code that can take input and return output.\nNext step: write a function that adds two numbers.";
+  }
+  return "Computer science is easier when broken into small steps.\nNext step: ask one focused question (for example: loops, arrays, or functions).";
+}
 
 function tutorRateLimit(req, res, next) {
   const key = req.user?.sub || req.ip || req.headers["x-forwarded-for"] || "unknown";
@@ -1087,6 +1130,11 @@ app.post("/api/demo/tutor", demoRateLimit, async (req, res) => {
     if (!message || typeof message !== "string") {
       return res.status(400).json({ error: "Missing 'message' string" });
     }
+    const cacheKey = normalizeDemoMessageKey(message);
+    const cachedReply = getCachedDemoReply(cacheKey);
+    if (cachedReply) {
+      return res.status(200).json({ reply: cachedReply, cached: true });
+    }
 
     const client = getClient();
     if (!client) {
@@ -1096,25 +1144,51 @@ app.post("/api/demo/tutor", demoRateLimit, async (req, res) => {
       });
     }
 
-    const response = await client.responses.create({
-      model: "gpt-4o-mini",
-      max_output_tokens: 220,
-      input: [
-        {
-          role: "system",
-          content:
-            "You are a concise computer science tutor in demo mode. Keep response under 6 short lines and include one practical next step.",
-        },
-        { role: "user", content: message },
-      ],
+    let timeoutHandle;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(new Error(`Demo request timed out after ${DEMO_TIMEOUT_MS}ms`));
+      }, DEMO_TIMEOUT_MS);
     });
 
+    let response;
+    try {
+      response = await Promise.race([
+        client.responses.create({
+          model: "gpt-4o-mini",
+          max_output_tokens: 120,
+          input: [
+            {
+              role: "system",
+              content:
+                "You are a concise computer science tutor in demo mode. Keep response under 4 short lines and include one practical next step.",
+            },
+            { role: "user", content: message },
+          ],
+        }),
+        timeoutPromise,
+      ]);
+    } catch (err) {
+      if (String(err?.message || "").includes("timed out")) {
+        const fallback = buildDemoFallbackReply(message);
+        setCachedDemoReply(cacheKey, fallback);
+        return res.status(200).json({ reply: fallback, fallback: true });
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutHandle);
+    }
+
+    const reply = response.output_text || "I could not generate a demo response this time.";
+    setCachedDemoReply(cacheKey, reply);
+
     return res.status(200).json({
-      reply: response.output_text || "I could not generate a demo response this time.",
+      reply,
     });
   } catch (err) {
     console.error("Demo tutor error:", err);
-    return res.status(500).json({ error: "Failed to run demo question" });
+    const fallback = buildDemoFallbackReply(req.body?.message || "");
+    return res.status(200).json({ reply: fallback, fallback: true });
   }
 });
 
