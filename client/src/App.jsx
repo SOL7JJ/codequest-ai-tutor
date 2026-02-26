@@ -1384,7 +1384,6 @@ error_text = stderr_capture.getvalue() + runtime_error
               <p>Try a demo question first. Use Login or Sign Up to continue in your full workspace.</p>
 
               <div className="demoCard">
-                <h3>Try one question first</h3>
                 <form className="inlineForm" onSubmit={handleDemoAsk}>
                   <textarea
                     className="demoQuestionInput"
