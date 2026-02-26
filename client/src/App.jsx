@@ -88,6 +88,7 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [isMobileViewport, setIsMobileViewport] = useState(() => window.innerWidth <= 768);
   const [mobileStartUnlocked, setMobileStartUnlocked] = useState(() => window.innerWidth > 768);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(() => window.innerWidth > 768);
   const [demoQuestion, setDemoQuestion] = useState(DEMO_QUESTIONS[0]);
   const [demoQuestionIndex, setDemoQuestionIndex] = useState(0);
   const [demoLoading, setDemoLoading] = useState(false);
@@ -596,6 +597,7 @@ export default function App() {
       const mobile = window.innerWidth <= 768;
       setIsMobileViewport(mobile);
       if (!mobile) setMobileStartUnlocked(true);
+      if (!mobile) setMobileToolsOpen(true);
     };
 
     updateViewport();
@@ -1792,8 +1794,19 @@ error_text = stderr_capture.getvalue() + runtime_error
                 </button>
                 <button type="submit" disabled={loading} className="sendBtn">{loading ? "Sending..." : "Send"}</button>
               </form>
+
+              {isMobileViewport && (
+                <button
+                  type="button"
+                  className="modeBtn mobileToolsToggle"
+                  onClick={() => setMobileToolsOpen((prev) => !prev)}
+                >
+                  {mobileToolsOpen ? "Hide tools & IDE" : "Show tools & IDE"}
+                </button>
+              )}
             </div>
 
+            {(!isMobileViewport || mobileToolsOpen) && (
             <aside className="side">
               <h3>Quick actions</h3>
               <div className="actions">
@@ -1887,6 +1900,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                 )}
               </div>
             </aside>
+            )}
           </div>
         </>
       )}

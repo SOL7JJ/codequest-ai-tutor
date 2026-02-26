@@ -819,6 +819,13 @@ button:disabled {
   box-shadow: 0 8px 20px rgba(18, 43, 80, 0.08);
 }
 
+.mobileToolsToggle {
+  margin-top: 8px;
+  width: 100%;
+  min-height: 44px;
+  border-style: dashed;
+}
+
 .composer input {
   flex: 1;
   min-width: 0;
@@ -1472,7 +1479,7 @@ button:disabled {
 
 @media (max-width: 768px) {
   .top {
-    padding: 0 48px;
+    padding: 0 4px;
   }
 
   .landing {
@@ -1540,7 +1547,16 @@ button:disabled {
   }
 
   .wrap {
-    padding: 14px 12px 12px;
+    padding: 12px 10px 10px;
+  }
+
+  .brand h1 {
+    font-size: 2rem;
+  }
+
+  .subtitle {
+    margin-top: 6px;
+    font-size: 0.95rem;
   }
 
   .controls {
@@ -1553,10 +1569,20 @@ button:disabled {
   }
 
   .chat {
-    max-height: 56vh;
-    min-height: 280px;
+    max-height: 58vh;
+    min-height: 320px;
     border-radius: 14px;
     padding: 12px;
+  }
+
+  .starters {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+  }
+
+  .starters button {
+    flex: 0 0 auto;
   }
 
   .demoReplyShell {
