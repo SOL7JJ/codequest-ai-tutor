@@ -12,6 +12,8 @@ dotenv.config({ quiet: true });
 const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 20000);
 const DEMO_TIMEOUT_MS = Number(process.env.DEMO_TIMEOUT_MS || 9000);
 const DEMO_CACHE_TTL_MS = Number(process.env.DEMO_CACHE_TTL_MS || 1000 * 60 * 60 * 6);
+const STREAM_CHUNK_SIZE = Number(process.env.STREAM_CHUNK_SIZE || 28);
+const STREAM_CHUNK_DELAY_MS = Number(process.env.STREAM_CHUNK_DELAY_MS || 22);
 const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60000);
 const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 20);
 const DEMO_RATE_LIMIT_MAX = Number(process.env.DEMO_RATE_LIMIT_MAX || 5);
@@ -1841,9 +1843,13 @@ app.post(
       });
 
       const streamedContent = String(reply || "(No output_text returned)");
-      const chunks = streamedContent.match(/[\s\S]{1,120}/g) || [];
+      const chunkSize = Number.isFinite(STREAM_CHUNK_SIZE) && STREAM_CHUNK_SIZE > 0 ? STREAM_CHUNK_SIZE : 28;
+      const chunks = streamedContent.match(new RegExp(`[\\s\\S]{1,${chunkSize}}`, "g")) || [];
       for (const chunk of chunks) {
         res.write(`data: ${JSON.stringify({ delta: chunk })}\n\n`);
+        if (STREAM_CHUNK_DELAY_MS > 0) {
+          await new Promise((resolve) => setTimeout(resolve, STREAM_CHUNK_DELAY_MS));
+        }
       }
 
       await incrementDailyUsage(req.user.sub);
