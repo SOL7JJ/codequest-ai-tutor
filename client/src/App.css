@@ -1678,7 +1678,7 @@ button:disabled {
   }
 
   .demoReplyShell {
-    height: 170px;
+    height: 145px;
   }
 
   .authCard .modeBtn,
@@ -1790,7 +1790,7 @@ button:disabled {
   }
 
   .demoActions {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 
   .heroLimitActions {
@@ -1814,6 +1814,6 @@ button:disabled {
   }
 
   .demoReplyShell {
-    height: 160px;
+    height: 130px;
   }
 }

@@ -122,6 +122,7 @@ export default function App() {
   const authCardRef = useRef(null);
   const landingCopyRef = useRef(null);
   const sideRef = useRef(null);
+  const demoQuestionTimerRef = useRef(null);
 
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressError, setProgressError] = useState("");
@@ -217,6 +218,21 @@ export default function App() {
     if (window.location.pathname === path) return;
     window.history.pushState({}, "", path);
     setCurrentPath(path);
+  }, []);
+
+  const clearDemoQuestionTimer = useCallback(() => {
+    if (demoQuestionTimerRef.current) {
+      window.clearTimeout(demoQuestionTimerRef.current);
+      demoQuestionTimerRef.current = null;
+    }
+  }, []);
+
+  const advanceDemoQuestion = useCallback(() => {
+    setDemoQuestionIndex((prev) => {
+      const next = (prev + 1) % DEMO_QUESTIONS.length;
+      setDemoQuestion(DEMO_QUESTIONS[next]);
+      return next;
+    });
   }, []);
 
   const isPaidPlan = isSubscriptionActive(billingStatus) || billingPlan === "pro" || billingPlan === "premium";
@@ -522,8 +538,19 @@ export default function App() {
 
   async function handleDemoAsk(e) {
     if (e?.preventDefault) e.preventDefault();
-    const question = demoQuestion.trim();
-    if (!question || demoLoading) return;
+    if (demoLoading) return;
+    clearDemoQuestionTimer();
+
+    let questionToAsk = demoQuestion.trim();
+    if (demoReply) {
+      const nextIndex = (demoQuestionIndex + 1) % DEMO_QUESTIONS.length;
+      const nextQuestion = DEMO_QUESTIONS[nextIndex];
+      setDemoQuestionIndex(nextIndex);
+      setDemoQuestion(nextQuestion);
+      questionToAsk = nextQuestion;
+    }
+
+    if (!questionToAsk) return;
     if (demoUsageCount >= DEMO_MAX_TRIES) {
       setDemoError("Demo limit reached (5/5). Upgrade or create an account to continue.");
       return;
@@ -535,7 +562,7 @@ export default function App() {
     try {
       const { res, data, rawText } = await fetchJson("/api/demo/tutor", {
         method: "POST",
-        body: JSON.stringify({ message: question }),
+        body: JSON.stringify({ message: questionToAsk }),
       });
       if (!res.ok) {
         const fallback =
@@ -546,6 +573,10 @@ export default function App() {
       }
       setDemoReply(data?.reply || "No demo response returned.");
       setDemoUsageCount((count) => count + 1);
+      demoQuestionTimerRef.current = window.setTimeout(() => {
+        advanceDemoQuestion();
+        demoQuestionTimerRef.current = null;
+      }, 10000);
     } catch (err) {
       setDemoError(err?.message || "Failed to run demo");
     } finally {
@@ -554,12 +585,11 @@ export default function App() {
   }
 
   function handleResetDemoQuestion() {
-    setDemoQuestionIndex((prev) => {
-      const next = (prev + 1) % DEMO_QUESTIONS.length;
-      setDemoQuestion(DEMO_QUESTIONS[next]);
-      return next;
-    });
+    clearDemoQuestionTimer();
+    advanceDemoQuestion();
   }
+
+  useEffect(() => clearDemoQuestionTimer, [clearDemoQuestionTimer]);
 
   async function handleSignOut() {
     localStorage.removeItem(TOKEN_KEY);
@@ -1306,7 +1336,7 @@ error_text = stderr_capture.getvalue() + runtime_error
               ref={landingCopyRef}
             >
               <p className="heroKicker">AI-Powered Learning Platform</p>
-              <h1>Master Computer Science with structured, exam-ready coaching</h1>
+              <h1>Master Computer Science and Programming with structured coaching</h1>
               <p className="heroText">Learn coding faster with tutor chat, code evaluation, lesson tracking, and dashboards.</p>
               <div className="heroActions">
                 <button type="button" className="sendBtn heroStartBtn" onClick={handleGetStarted}>
