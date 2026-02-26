@@ -11,7 +11,7 @@ const JS_RUN_TIMEOUT_MS = 4000;
 const DEMO_MAX_TRIES = 5;
 const DEMO_QUESTIONS = [
   "How do Python loops work?",
-  "What is a variable in JavaScript with a simple example?",
+  "What is a JavaScript variable?",
   "Explain arrays for a beginner with one coding example.",
   "How do functions return values in Python?",
   "What is the difference between while and for loops?",
