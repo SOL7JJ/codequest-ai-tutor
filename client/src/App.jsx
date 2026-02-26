@@ -1785,31 +1785,33 @@ error_text = stderr_capture.getvalue() + runtime_error
                 </div>
               </main>
 
-              <form className="composer" onSubmit={sendMessage}>
-                <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a CS question..." />
-                <button
-                  type="button"
-                  className="modeBtn clearComposerBtn"
-                  onClick={handleClearChat}
-                  disabled={loading || isFreshSession}
-                >
-                  Clear chat
-                </button>
-                <button type="submit" disabled={loading} className="sendBtn">{loading ? "Sending..." : "Send"}</button>
-              </form>
+              <div className={`chatDock ${isMobileViewport ? "mobile" : ""}`}>
+                <form className="composer" onSubmit={sendMessage}>
+                  <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a CS question..." />
+                  <button
+                    type="button"
+                    className="modeBtn clearComposerBtn"
+                    onClick={handleClearChat}
+                    disabled={loading || isFreshSession}
+                  >
+                    Clear chat
+                  </button>
+                  <button type="submit" disabled={loading} className="sendBtn">{loading ? "Sending..." : "Send"}</button>
+                </form>
 
-              {isMobileViewport && (
-                <button
-                  type="button"
-                  className="modeBtn mobileToolsToggle"
-                  onClick={() => {
-                    goToPath("/tools");
-                    sideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                >
-                  Show tools & IDE
-                </button>
-              )}
+                {isMobileViewport && (
+                  <button
+                    type="button"
+                    className="modeBtn mobileToolsToggle"
+                    onClick={() => {
+                      goToPath("/tools");
+                      sideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                  >
+                    Show tools & IDE
+                  </button>
+                )}
+              </div>
             </div>
 
             {(!isMobileViewport || currentPath === "/tools") && (

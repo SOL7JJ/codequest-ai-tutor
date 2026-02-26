@@ -844,6 +844,10 @@ button:disabled {
   overflow: hidden;
 }
 
+.chatDock {
+  margin-top: 8px;
+}
+
 .mobileToolsToggle {
   margin-top: 8px;
   width: 100%;
@@ -1609,6 +1613,10 @@ button:disabled {
     padding: 12px;
   }
 
+  .chatColumn {
+    padding-bottom: calc(150px + env(safe-area-inset-bottom));
+  }
+
   .layout,
   .chatColumn,
   .side,
@@ -1701,9 +1709,19 @@ button:disabled {
     max-width: 100%;
   }
 
+  .chatDock.mobile {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    z-index: 60;
+    display: grid;
+    gap: 8px;
+  }
+
   .composer {
     position: static;
-    margin-top: 8px;
+    margin-top: 0;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
@@ -1725,9 +1743,25 @@ button:disabled {
     width: 100%;
   }
 
-  .ideLanguageTabs,
-  .ideActions {
+  .mobileToolsToggle {
+    margin-top: 0;
+    min-height: 42px;
+  }
+
+  .ideLanguageTabs {
     grid-template-columns: 1fr;
+  }
+
+  .ideActions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .ideActions .modeBtn {
+    min-height: 40px;
+    font-size: 0.9rem;
+    line-height: 1.15;
+    padding: 8px 6px;
   }
 
   .demoActions {
