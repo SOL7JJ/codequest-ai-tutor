@@ -1841,7 +1841,7 @@ app.post(
       });
 
       const streamedContent = String(reply || "(No output_text returned)");
-      const chunks = streamedContent.match(/.{1,120}/g) || [];
+      const chunks = streamedContent.match(/[\s\S]{1,120}/g) || [];
       for (const chunk of chunks) {
         res.write(`data: ${JSON.stringify({ delta: chunk })}\n\n`);
       }
