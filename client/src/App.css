@@ -1600,6 +1600,33 @@ button:disabled {
     padding: 12px;
   }
 
+  .layout,
+  .chatColumn,
+  .side,
+  .tips,
+  .ideShell,
+  .ideHead,
+  .ideEditor,
+  .ideActions,
+  .ideLanguageTabs,
+  .miniIdeOutput,
+  .miniIdeError,
+  .actions,
+  .modeBtn {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .side {
+    padding: 12px;
+    overflow-x: hidden;
+  }
+
+  .modeBtn {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .bubble pre {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
