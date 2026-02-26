@@ -1744,12 +1744,14 @@ error_text = stderr_capture.getvalue() + runtime_error
 
       {viewMode === "tutor" && (
         <>
-          <div className="starters">
-            <span className="startersLabel">Try:</span>
-            {starterPrompts.map((p) => (
-              <button key={p.label} type="button" onClick={() => sendMessage(null, p.text)} disabled={loading}>{p.label}</button>
-            ))}
-          </div>
+          {currentPath !== "/tools" && (
+            <div className="starters">
+              <span className="startersLabel">Try:</span>
+              {starterPrompts.map((p) => (
+                <button key={p.label} type="button" onClick={() => sendMessage(null, p.text)} disabled={loading}>{p.label}</button>
+              ))}
+            </div>
+          )}
 
           <div className="layout">
             <div className={`chatColumn ${isMobileViewport && currentPath === "/tools" ? "mobileHidden" : ""}`}>
@@ -1824,13 +1826,17 @@ error_text = stderr_capture.getvalue() + runtime_error
                   Back to chat
                 </button>
               )}
-              <h3>Quick actions</h3>
-              <div className="actions">
-                <button type="button" onClick={() => setMode("Explain")} className={`modeBtn ${mode === "Explain" ? "active" : ""}`}>Explain</button>
-                <button type="button" onClick={() => setMode("Hint")} className={`modeBtn ${mode === "Hint" ? "active" : ""}`}>Hint</button>
-                <button type="button" onClick={() => setMode("Quiz")} className={`modeBtn ${mode === "Quiz" ? "active" : ""}`} disabled={!isPaidPlan}>{isPaidPlan ? "Quiz" : "Quiz (Pro)"}</button>
-                <button type="button" onClick={() => setMode("Mark")} className={`modeBtn ${mode === "Mark" ? "active" : ""}`} disabled={!isPaidPlan}>{isPaidPlan ? "Mark" : "Mark (Pro)"}</button>
-              </div>
+              {currentPath !== "/tools" && (
+                <>
+                  <h3>Quick actions</h3>
+                  <div className="actions">
+                    <button type="button" onClick={() => setMode("Explain")} className={`modeBtn ${mode === "Explain" ? "active" : ""}`}>Explain</button>
+                    <button type="button" onClick={() => setMode("Hint")} className={`modeBtn ${mode === "Hint" ? "active" : ""}`}>Hint</button>
+                    <button type="button" onClick={() => setMode("Quiz")} className={`modeBtn ${mode === "Quiz" ? "active" : ""}`} disabled={!isPaidPlan}>{isPaidPlan ? "Quiz" : "Quiz (Pro)"}</button>
+                    <button type="button" onClick={() => setMode("Mark")} className={`modeBtn ${mode === "Mark" ? "active" : ""}`} disabled={!isPaidPlan}>{isPaidPlan ? "Mark" : "Mark (Pro)"}</button>
+                  </div>
+                </>
+              )}
 
               <div className="tips">
                 <h4>Student IDE</h4>
