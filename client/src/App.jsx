@@ -122,6 +122,7 @@ export default function App() {
   const topMenuRef = useRef(null);
   const authCardRef = useRef(null);
   const landingCopyRef = useRef(null);
+  const sideRef = useRef(null);
 
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressError, setProgressError] = useState("");
@@ -1753,7 +1754,7 @@ error_text = stderr_capture.getvalue() + runtime_error
           </div>
 
           <div className="layout">
-            <div className="chatColumn">
+            <div className={`chatColumn ${isMobileViewport && mobileToolsOpen ? "mobileHidden" : ""}`}>
               <main className="chat" ref={chatRef}>
                 <div className="chatStream">
                   {historyLoading && <p className="inlineLoadingText">Loading your recent chat history...</p>}
@@ -1801,15 +1802,30 @@ error_text = stderr_capture.getvalue() + runtime_error
                 <button
                   type="button"
                   className="modeBtn mobileToolsToggle"
-                  onClick={() => setMobileToolsOpen((prev) => !prev)}
+                  onClick={() => {
+                    setMobileToolsOpen(true);
+                    sideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
                 >
-                  {mobileToolsOpen ? "Hide tools & IDE" : "Show tools & IDE"}
+                  Show tools & IDE
                 </button>
               )}
             </div>
 
             {(!isMobileViewport || mobileToolsOpen) && (
-            <aside className="side">
+            <aside className="side" ref={sideRef}>
+              {isMobileViewport && mobileToolsOpen && (
+                <button
+                  type="button"
+                  className="modeBtn mobileBackToChatBtn"
+                  onClick={() => {
+                    setMobileToolsOpen(false);
+                    chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                >
+                  Back to chat
+                </button>
+              )}
               <h3>Quick actions</h3>
               <div className="actions">
                 <button type="button" onClick={() => setMode("Explain")} className={`modeBtn ${mode === "Explain" ? "active" : ""}`}>Explain</button>

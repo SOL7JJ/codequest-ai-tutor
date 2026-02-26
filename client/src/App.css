@@ -851,6 +851,11 @@ button:disabled {
   border-style: dashed;
 }
 
+.mobileBackToChatBtn {
+  margin-bottom: 10px;
+  width: 100%;
+}
+
 .composer input {
   flex: 1;
   min-width: 0;
@@ -1503,6 +1508,10 @@ button:disabled {
 }
 
 @media (max-width: 768px) {
+  .chatColumn.mobileHidden {
+    display: none;
+  }
+
   .top {
     padding: 0 4px;
   }
