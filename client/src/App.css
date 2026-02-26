@@ -1306,6 +1306,7 @@ button:disabled {
   color: #f8fbff;
   font-weight: 800;
   box-shadow: 0 10px 20px rgba(31, 87, 159, 0.24);
+  min-height: 42px;
 }
 
 .demoTryBtn:hover {
@@ -1678,7 +1679,13 @@ button:disabled {
   }
 
   .demoReplyShell {
-    height: 145px;
+    height: 175px;
+  }
+
+  .demoQuestionInput {
+    min-height: 36px;
+    padding-top: 8px;
+    padding-bottom: 8px;
   }
 
   .authCard .modeBtn,
@@ -1814,6 +1821,6 @@ button:disabled {
   }
 
   .demoReplyShell {
-    height: 130px;
+    height: 160px;
   }
 }

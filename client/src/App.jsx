@@ -1385,11 +1385,6 @@ error_text = stderr_capture.getvalue() + runtime_error
 
               <div className="demoCard">
                 <h3>Try one question first</h3>
-                <p className="demoGuide">
-                  How to use this demo : press button.
-                  <br />
-                  try demo, clear chat , reset question
-                </p>
                 <form className="inlineForm" onSubmit={handleDemoAsk}>
                   <textarea
                     className="demoQuestionInput"
@@ -1397,7 +1392,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                     onChange={(e) => setDemoQuestion(e.target.value)}
                     placeholder="Ask a coding question..."
                     disabled={demoReachedLimit}
-                    rows={2}
+                    rows={1}
                   />
                   <button type="submit" className="modeBtn demoTryBtn" disabled={demoLoading || demoReachedLimit}>
                     {demoLoading ? "Thinking..." : "Try demo"}
