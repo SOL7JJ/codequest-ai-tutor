@@ -1750,6 +1750,11 @@ error_text = stderr_capture.getvalue() + runtime_error
               {starterPrompts.map((p) => (
                 <button key={p.label} type="button" onClick={() => sendMessage(null, p.text)} disabled={loading}>{p.label}</button>
               ))}
+              {isMobileViewport && (
+                <button type="button" className="modeBtn starterLogoutBtn" onClick={handleSignOut}>
+                  Log out
+                </button>
+              )}
             </div>
           )}
 
@@ -1800,21 +1805,16 @@ error_text = stderr_capture.getvalue() + runtime_error
                 </form>
 
                 {isMobileViewport && (
-                  <div className="mobileDockActions">
-                    <button
-                      type="button"
-                      className="modeBtn mobileToolsToggle"
-                      onClick={() => {
-                        goToPath("/tools");
-                        sideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }}
-                    >
-                      Show tools & IDE
-                    </button>
-                    <button type="button" className="modeBtn mobileLogoutBtn" onClick={handleSignOut}>
-                      Log out
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="modeBtn mobileToolsToggle"
+                    onClick={() => {
+                      goToPath("/tools");
+                      sideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                  >
+                    Show tools & IDE
+                  </button>
                 )}
               </div>
             </div>

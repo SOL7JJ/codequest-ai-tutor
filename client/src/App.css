@@ -260,6 +260,13 @@ button:disabled {
   box-shadow: 0 8px 18px rgba(32, 84, 148, 0.12);
 }
 
+.starterLogoutBtn {
+  margin-left: auto;
+  border-color: #d8b0b0;
+  color: #7e1f1f;
+  background: #fff;
+}
+
 .workspaceTabs {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -853,19 +860,6 @@ button:disabled {
   width: 100%;
   min-height: 44px;
   border-style: dashed;
-}
-
-.mobileDockActions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.mobileLogoutBtn {
-  min-height: 44px;
-  border-color: #d8b0b0;
-  background: #fff;
-  color: #7e1f1f;
 }
 
 .mobileBackToChatBtn {
@@ -1674,6 +1668,11 @@ button:disabled {
     flex: 0 1 auto;
   }
 
+  .starterLogoutBtn {
+    order: 99;
+    margin-left: auto;
+  }
+
   .demoReplyShell {
     height: 170px;
   }
@@ -1761,7 +1760,7 @@ button:disabled {
     min-height: 42px;
   }
 
-  .mobileLogoutBtn {
+  .starterLogoutBtn {
     min-height: 42px;
   }
 
