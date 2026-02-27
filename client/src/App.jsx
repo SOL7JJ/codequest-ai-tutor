@@ -1393,12 +1393,12 @@ error_text = stderr_capture.getvalue() + runtime_error
 
               <div className="landingTrust">
                 <h3>Trusted by students worldwide</h3>
-                <p>4.9 ★★★★★ · 1000+ reviews</p>
+                <p>4.9 ★★★★★</p>
               </div>
 
               <div className="landingQuote">
                 <p>“CodeQuest has made learning to code much easier. The AI tutor is always there when I’m stuck.”</p>
-                <strong>Sarah, KS3</strong>
+                <strong>Claudia</strong>
               </div>
 
               <div className="heroLimitShell">
