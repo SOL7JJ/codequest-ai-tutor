@@ -153,6 +153,7 @@ export default function App() {
   const pyodideLoadPromiseRef = useRef(null);
   const jsWorkerRef = useRef(null);
   const jsWorkerTimeoutRef = useRef(null);
+  const ideOutputRef = useRef(null);
 
   const [teacherTopic, setTeacherTopic] = useState("Python");
   const [teacherLevel, setTeacherLevel] = useState("KS3");
@@ -826,6 +827,12 @@ export default function App() {
     setIdeDrafts((prev) => ({ ...prev, [codeLanguage]: value }));
   }
 
+  function scrollToIdeOutput() {
+    window.setTimeout(() => {
+      ideOutputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 80);
+  }
+
   async function handleRunCode() {
     if (!codeInput.trim()) {
       setIdeRunError("Write some code first.");
@@ -840,6 +847,7 @@ export default function App() {
       if (codeLanguage === "javascript") {
         const jsOutput = await runJavaScriptInWorker(codeInput);
         setIdeOutput(jsOutput || "No output (use console.log(...) to display values).");
+        scrollToIdeOutput();
         return;
       }
 
@@ -880,9 +888,11 @@ error_text = stderr_capture.getvalue() + runtime_error
         setIdeRunError(errorText.trim());
       }
       setIdeOutput(outputText.trim() ? outputText : "No output (use print(...) to display values).");
+      scrollToIdeOutput();
     } catch (err) {
       setIdeRunError(err?.message || `Failed to run ${codeLanguage} code.`);
       setIdeOutput("");
+      scrollToIdeOutput();
     } finally {
       setIdeRunLoading(false);
     }
@@ -1983,7 +1993,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                       Reset starter
                     </button>
                   </div>
-                  <pre className="miniIdeOutput">{ideOutput || "Output will appear here..."}</pre>
+                  <pre ref={ideOutputRef} className="miniIdeOutput">{ideOutput || "Output will appear here..."}</pre>
                   {ideRunError && <pre className="miniIdeError">{ideRunError}</pre>}
                 </div>
                 <div className="inlineForm">

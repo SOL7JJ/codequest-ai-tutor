@@ -825,6 +825,7 @@ button:disabled {
   padding: 10px;
   white-space: pre-wrap;
   overflow-x: auto;
+  overflow-y: auto;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: 0.84rem;
 }
@@ -833,6 +834,8 @@ button:disabled {
   border: 1px solid #cddbee;
   background: #fff;
   color: #19385f;
+  min-height: 84px;
+  max-height: 220px;
 }
 
 .miniIdeError {
@@ -2079,6 +2082,11 @@ button:disabled {
     font-size: 0.9rem;
     line-height: 1.15;
     padding: 8px 6px;
+  }
+
+  .miniIdeOutput {
+    min-height: 120px;
+    max-height: 260px;
   }
 
   .demoActions {
