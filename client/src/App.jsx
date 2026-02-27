@@ -1353,9 +1353,11 @@ error_text = stderr_capture.getvalue() + runtime_error
               <img className="landingLogoImage" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
               <span>CodeQuest AI Tutor</span>
             </div>
-            <button type="button" className="modeBtn landingLoginBtn" onClick={() => openAuthPage("login")}>
-              Login
-            </button>
+            {!(isMobileViewport && mobileStartUnlocked) && (
+              <button type="button" className="modeBtn landingLoginBtn" onClick={() => openAuthPage("login")}>
+                Login
+              </button>
+            )}
           </header>
           <div className="landingTagRow">
             <span className="landingTag">Built for KS3 · GCSE · A-Level · T-Level</span>
