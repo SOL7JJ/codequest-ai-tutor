@@ -980,6 +980,20 @@ button:disabled {
 
 .landingHeroSingle {
   grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.landingHeroSingle .landingCopy {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  box-shadow: none;
+}
+
+.landingHeroSingle .authCard {
+  margin-top: -1px;
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 .landingCopy,
@@ -1749,6 +1763,15 @@ button:disabled {
   .landingCopy {
     min-height: calc(100dvh - 120px);
     justify-content: center;
+  }
+
+  .landingHeroSingle .authCard:not(.authCardLocked) {
+    margin-top: -1px;
+    border-top: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
   }
 
   .heroText {
