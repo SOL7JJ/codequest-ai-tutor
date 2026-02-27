@@ -7,6 +7,7 @@ const TOKEN_KEY = "codequest_auth_token";
 const LAST_EMAIL_KEY = "codequest_last_email";
 const CHECKOUT_NOTICE_KEY = "codequest_checkout_notice";
 const FIRST_CHAT_MESSAGE_TRACKED_KEY = "codequest_first_chat_message_tracked";
+const AUTH_SUCCESS_TRACKED_KEY = "auth_tracked";
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const JS_RUN_TIMEOUT_MS = 4000;
 const DEMO_MAX_TRIES = 5;
@@ -529,6 +530,7 @@ export default function App() {
       if (!res.ok) throw new Error(data?.error || rawText || `Auth failed (${res.status})`);
       if (!data?.token || !data?.user) throw new Error("Invalid auth response from server");
 
+      trackAuthSuccess();
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(LAST_EMAIL_KEY, data.user?.email || normalizedEmail);
       setUser(data.user);
@@ -646,6 +648,21 @@ export default function App() {
     setAuthError("");
     setPassword("");
     goToPath("/auth");
+  }
+
+  function trackAuthSuccess() {
+    try {
+      if (sessionStorage.getItem(AUTH_SUCCESS_TRACKED_KEY)) return;
+      if (typeof window.gtag === "function") {
+        window.gtag("event", "auth_success", {
+          event_category: "engagement",
+          event_label: "User Authenticated",
+        });
+      }
+      sessionStorage.setItem(AUTH_SUCCESS_TRACKED_KEY, "1");
+    } catch {
+      // ignore storage errors
+    }
   }
 
   function trackFirstChatMessageSent() {
