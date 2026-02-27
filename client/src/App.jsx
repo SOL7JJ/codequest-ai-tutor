@@ -1351,7 +1351,7 @@ error_text = stderr_capture.getvalue() + runtime_error
             <span className="landingTag">Built for KS3 · GCSE · A-Level</span>
           </div>
 
-          <section className="landingHero">
+          <section className="landingHero landingHeroSingle">
             <div
               className={`landingCopy ${isMobileViewport && mobileStartUnlocked ? "landingCopyLocked" : ""}`}
               ref={landingCopyRef}
@@ -1417,25 +1417,6 @@ error_text = stderr_capture.getvalue() + runtime_error
                 )}
               </div>
             </div>
-
-            <aside className={`landingVisual ${isMobileViewport && mobileStartUnlocked ? "landingCopyLocked" : ""}`}>
-              <div className="landingVisualInner">
-                <h3>What students get in one lesson</h3>
-                <ul>
-                  <li>Step-by-step explanation matched to KS3/GCSE/A-Level.</li>
-                  <li>Instant code feedback with clear corrections.</li>
-                  <li>Actionable next task to keep momentum.</li>
-                </ul>
-                <img src="/og-robot-v2.png" alt="CodeQuest AI Tutor preview" />
-                <div className="landingVisualStats">
-                  <span>Avg response: under 5s</span>
-                  <span>Curriculum aligned</span>
-                </div>
-                <button type="button" className="sendBtn" onClick={handleGetStarted}>
-                  Start Free Lesson
-                </button>
-              </div>
-            </aside>
 
             <section
               className={`authCard ${isMobileViewport && !mobileStartUnlocked ? "authCardLocked" : ""}`}
