@@ -1070,16 +1070,61 @@ button:disabled {
   border: 1px solid #d6e2f0;
   border-radius: 22px;
   box-shadow: var(--shadow);
-  padding: 14px;
+  padding: 16px;
+}
+
+.landingVisualInner {
+  height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.landingVisualInner h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+  color: #13335b;
+}
+
+.landingVisualInner ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: #355780;
+  font-weight: 600;
+  font-size: 0.94rem;
 }
 
 .landingVisual img {
   width: 100%;
   height: auto;
   border-radius: 16px;
+  border: 1px solid #d6e2ef;
+  background: #f8fbff;
+}
+
+.landingVisualStats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.landingVisualStats span {
+  border: 1px solid #c8d9ed;
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: #2f5887;
+  font-size: 0.84rem;
+  font-weight: 700;
+  background: #f3f8ff;
+}
+
+.landingVisualInner .sendBtn {
+  margin-top: auto;
+  min-height: 48px;
 }
 
 .landingFeatureCards {
