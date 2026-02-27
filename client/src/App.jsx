@@ -6,6 +6,7 @@ const API_BASE = import.meta.env.VITE_API_URL || "https://codequest-ai-tutor.onr
 const TOKEN_KEY = "codequest_auth_token";
 const LAST_EMAIL_KEY = "codequest_last_email";
 const CHECKOUT_NOTICE_KEY = "codequest_checkout_notice";
+const FIRST_CHAT_MESSAGE_TRACKED_KEY = "codequest_first_chat_message_tracked";
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const JS_RUN_TIMEOUT_MS = 4000;
 const DEMO_MAX_TRIES = 5;
@@ -607,10 +608,22 @@ export default function App() {
     setInput("");
   }
 
-  function handleGetStarted() {
-    setMobileStartUnlocked(true);
-    authCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+ function handleGetStarted() {
+
+  // 📊 Google Analytics event
+  if (typeof window.gtag === "function") {
+    window.gtag("event", "get_started_click", {
+      event_category: "engagement",
+      event_label: "Get Started Button",
+    });
   }
+
+  setMobileStartUnlocked(true);
+  authCardRef.current?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+}
 
   function handleBackToIntro() {
     setMobileStartUnlocked(false);
@@ -621,6 +634,23 @@ export default function App() {
     setAuthMode(nextMode);
     goToPath("/auth");
   }
+
+  function trackFirstChatMessageSent() {
+  try {
+    if (sessionStorage.getItem(FIRST_CHAT_MESSAGE_TRACKED_KEY)) return;
+
+    if (typeof window.gtag === "function") {
+      window.gtag("event", "first_chat_message_sent", {
+        event_category: "engagement",
+        event_label: "AI Tutor Message",
+      });
+    }
+
+    sessionStorage.setItem(FIRST_CHAT_MESSAGE_TRACKED_KEY, "1");
+  } catch {
+    // ignore storage errors
+  }
+}
 
   useEffect(() => {
     const updateViewport = () => {
@@ -669,6 +699,7 @@ export default function App() {
     if (e?.preventDefault) e.preventDefault();
     const text = (forcedText ?? input).trim();
     if (!text || loading) return;
+    trackFirstChatMessageSent();
 
     setMessages((m) => [...m, { role: "user", content: text }, { role: "assistant", content: "" }]);
     setInput("");
