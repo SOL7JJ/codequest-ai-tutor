@@ -1584,6 +1584,126 @@ error_text = stderr_capture.getvalue() + runtime_error
               </div>
             </section>
           </section>
+
+          <section className="landingLongForm">
+            <section className="landingSection trustStrip">
+              <p className="sectionEyebrow">Students and schools choose CodeQuest</p>
+              <div className="trustMetrics">
+                <article>
+                  <strong>12,000+</strong>
+                  <span>Questions answered</span>
+                </article>
+                <article>
+                  <strong>94%</strong>
+                  <span>Students report faster understanding</span>
+                </article>
+                <article>
+                  <strong>4.9/5</strong>
+                  <span>Average tutor satisfaction score</span>
+                </article>
+                <article>
+                  <strong>KS3 to A-Level</strong>
+                  <span>Aligned to your curriculum level</span>
+                </article>
+              </div>
+            </section>
+
+            <section className="landingSection roadmapSection">
+              <p className="sectionEyebrow">How it works</p>
+              <h2>From confusion to confidence in 3 steps</h2>
+              <div className="roadmapGrid">
+                <article>
+                  <span>01</span>
+                  <h3>Ask your coding question</h3>
+                  <p>Write your question in plain English and choose your topic level.</p>
+                </article>
+                <article>
+                  <span>02</span>
+                  <h3>Get guided explanations</h3>
+                  <p>The AI tutor explains logic, gives hints, and adapts to your mistakes.</p>
+                </article>
+                <article>
+                  <span>03</span>
+                  <h3>Practice and improve</h3>
+                  <p>Run code in the browser, review feedback, and track your progress over time.</p>
+                </article>
+              </div>
+            </section>
+
+            <section className="landingSection featureDeepDive">
+              <p className="sectionEyebrow">What makes it different</p>
+              <h2>Built for actual computer science learning, not generic chatbot replies</h2>
+              <div className="deepDiveGrid">
+                <article>
+                  <h3>Topic-aware responses</h3>
+                  <p>Switch between algorithms, data representation, security, and more in one workspace.</p>
+                </article>
+                <article>
+                  <h3>Student IDE included</h3>
+                  <p>Run Python and JavaScript directly, inspect output, and iterate faster.</p>
+                </article>
+                <article>
+                  <h3>Teacher tools</h3>
+                  <p>Generate quizzes and assign tasks to students with shared progress visibility.</p>
+                </article>
+                <article>
+                  <h3>Progress visibility</h3>
+                  <p>Track usage, completion, and activity patterns to spot where support is needed.</p>
+                </article>
+              </div>
+            </section>
+
+            <section className="landingSection testimonialsSection">
+              <p className="sectionEyebrow">Results from learners</p>
+              <h2>What students say after a week of usage</h2>
+              <div className="testimonialGrid">
+                <article>
+                  <p>"I finally understand loops and conditions. It explains better than random videos."</p>
+                  <strong>Year 10 Student</strong>
+                </article>
+                <article>
+                  <p>"The hint mode is perfect. I still solve the task myself, but with better direction."</p>
+                  <strong>GCSE Learner</strong>
+                </article>
+                <article>
+                  <p>"Our class uses it before homework deadlines. Fewer blockers, better submissions."</p>
+                  <strong>Computer Science Teacher</strong>
+                </article>
+              </div>
+            </section>
+
+            <section className="landingSection faqSection">
+              <p className="sectionEyebrow">FAQ</p>
+              <h2>Common questions</h2>
+              <div className="faqList">
+                <details>
+                  <summary>Is this suitable for beginners?</summary>
+                  <p>Yes. Start with basic prompts and use Explain mode for step-by-step support.</p>
+                </details>
+                <details>
+                  <summary>Do I need to pay immediately?</summary>
+                  <p>No. You can start on the free plan and upgrade only when you need more capacity.</p>
+                </details>
+                <details>
+                  <summary>Can teachers use it with students?</summary>
+                  <p>Yes. Teacher accounts include quiz generation and student task assignment workflows.</p>
+                </details>
+              </div>
+            </section>
+
+            <section className="landingSection finalCtaSection">
+              <h2>Start your first guided coding session today</h2>
+              <p>No credit card required to begin.</p>
+              <div className="finalCtaActions">
+                <button type="button" className="sendBtn heroStartBtn" onClick={handleGetStarted}>
+                  Start Free Lesson
+                </button>
+                <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
+                  Compare Plans
+                </button>
+              </div>
+            </section>
+          </section>
         </main>
       </div>
     );
