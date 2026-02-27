@@ -73,6 +73,10 @@ const DEFAULT_WELCOME_MESSAGE = {
     "Hi! I am your AI Tutor. Ask coding questions, paste code for feedback, or track your progress in dashboards.",
 };
 
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 function isSubscriptionActive(status) {
   return status === "active" || status === "trialing";
 }
@@ -494,9 +498,13 @@ export default function App() {
     if (e?.preventDefault) e.preventDefault();
     if (authLoading) return;
 
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail || !password) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail || !password) {
       setAuthError("Email and password are required.");
+      return;
+    }
+    if (authMode === "signup" && password.length < 6) {
+      setAuthError("Password must be at least 6 characters.");
       return;
     }
 
@@ -509,8 +517,8 @@ export default function App() {
       const endpoint = authMode === "signup" ? "/api/auth/register" : "/api/auth/login";
       const payload =
         authMode === "signup"
-          ? { email: trimmedEmail, password, role: signupRole }
-          : { email: trimmedEmail, password };
+          ? { email: normalizedEmail, password, role: signupRole === "teacher" ? "teacher" : "student" }
+          : { email: normalizedEmail, password };
 
       const { res, data, rawText } = await fetchJson(endpoint, {
         method: "POST",
@@ -522,12 +530,15 @@ export default function App() {
       if (!data?.token || !data?.user) throw new Error("Invalid auth response from server");
 
       localStorage.setItem(TOKEN_KEY, data.token);
-      localStorage.setItem(LAST_EMAIL_KEY, data.user?.email || trimmedEmail);
+      localStorage.setItem(LAST_EMAIL_KEY, data.user?.email || normalizedEmail);
       setUser(data.user);
+      setEmail(data.user?.email || normalizedEmail);
       setPassword("");
+      setCheckoutNotice("");
+      goToPath("/");
     } catch (err) {
       if (err?.name === "AbortError") {
-        setAuthError("Login is taking too long. Please try again.");
+        setAuthError("Request is taking too long. Please try again.");
       } else {
         setAuthError(err?.message || "Authentication failed.");
       }
@@ -632,6 +643,8 @@ export default function App() {
 
   function openAuthPage(nextMode = "login") {
     setAuthMode(nextMode);
+    setAuthError("");
+    setPassword("");
     goToPath("/auth");
   }
 
@@ -1335,31 +1348,55 @@ error_text = stderr_capture.getvalue() + runtime_error
                 <button
                   type="button"
                   className={`modeBtn ${authMode === "login" ? "active" : ""}`}
-                  onClick={() => setAuthMode("login")}
+                  onClick={() => {
+                    setAuthMode("login");
+                    setAuthError("");
+                  }}
                 >
                   Login
                 </button>
                 <button
                   type="button"
                   className={`modeBtn ${authMode === "signup" ? "active" : ""}`}
-                  onClick={() => setAuthMode("signup")}
+                  onClick={() => {
+                    setAuthMode("signup");
+                    setAuthError("");
+                  }}
                 >
                   Sign Up
                 </button>
               </div>
 
               <form className="authForm" onSubmit={handleEmailAuth}>
-                <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (authError) setAuthError("");
+                  }}
+                  required
+                />
                 <input
                   type="password"
                   placeholder="Password (min 6 chars)"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (authError) setAuthError("");
+                  }}
                   required
                   minLength={6}
                 />
                 {authMode === "signup" && (
-                  <select value={signupRole} onChange={(e) => setSignupRole(e.target.value)}>
+                  <select
+                    value={signupRole}
+                    onChange={(e) => {
+                      setSignupRole(e.target.value);
+                      if (authError) setAuthError("");
+                    }}
+                  >
                     <option value="student">Student account</option>
                     <option value="teacher">Teacher account</option>
                   </select>
