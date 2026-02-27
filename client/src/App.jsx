@@ -1534,10 +1534,18 @@ error_text = stderr_capture.getvalue() + runtime_error
                   <button type="button" className="modeBtn authBackBtn" onClick={handleBackToIntro}>
                     Back to intro
                   </button>
-                  <button type="button" className="modeBtn authQuickBtn" onClick={() => openAuthPage("login")}>
+                  <button
+                    type="button"
+                    className="modeBtn authQuickBtn authLoginBtn"
+                    onClick={() => openAuthPage("login")}
+                  >
                     Login
                   </button>
-                  <button type="button" className="modeBtn authQuickBtn" onClick={() => openAuthPage("signup")}>
+                  <button
+                    type="button"
+                    className="modeBtn authQuickBtn authSignupBtn"
+                    onClick={() => openAuthPage("signup")}
+                  >
                     Sign Up
                   </button>
                 </div>

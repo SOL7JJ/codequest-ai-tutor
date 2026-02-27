@@ -1460,14 +1460,14 @@ button:disabled {
   color: #5a7090;
 }
 
-.trustStrip {
+.landingCopy .trustStrip {
   margin-top: 14px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.trustStrip span {
+.landingCopy .trustStrip span {
   border-radius: 999px;
   border: 1px solid #c8d7ea;
   padding: 6px 11px;
@@ -1539,6 +1539,30 @@ button:disabled {
 
 .authQuickBtn {
   font-weight: 800;
+}
+
+.authLoginBtn {
+  border-color: #a9c3e1;
+  background: linear-gradient(180deg, #f7fbff 0%, #edf5ff 100%);
+  color: #1f4b78;
+}
+
+.authLoginBtn:hover {
+  background: linear-gradient(180deg, #f2f8ff 0%, #e7f1ff 100%);
+  border-color: #96b7db;
+}
+
+.authSignupBtn {
+  border-color: #8fb5df;
+  background: linear-gradient(180deg, #eaf4ff 0%, #dcecff 100%);
+  color: #143f70;
+  box-shadow: 0 6px 14px rgba(27, 86, 156, 0.1);
+}
+
+.authSignupBtn:hover {
+  background: linear-gradient(180deg, #e2f0ff 0%, #d5e8ff 100%);
+  border-color: #7fa9d7;
+  box-shadow: 0 8px 16px rgba(27, 86, 156, 0.15);
 }
 
 .authOnlyPage {
@@ -2014,6 +2038,18 @@ button:disabled {
 
   .trustStrip .trustMetrics {
     grid-template-columns: 1fr;
+  }
+
+  .trustStrip {
+    text-align: center;
+  }
+
+  .trustStrip .sectionEyebrow {
+    text-align: center;
+  }
+
+  .trustStrip .trustMetrics article {
+    text-align: center;
   }
 
   .landingTrust h3 {
