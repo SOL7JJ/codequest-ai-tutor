@@ -1453,19 +1453,29 @@ error_text = stderr_capture.getvalue() + runtime_error
               className={`landingCopy ${isMobileViewport && mobileStartUnlocked ? "landingCopyLocked" : ""}`}
               ref={landingCopyRef}
             >
-              <p className="heroKicker">Designed by a Computer Science instructor using AI coaching.</p>
-              <h1>Learn Coding Faster with AI-Powered Tutoring</h1>
+              <p className="heroKicker">Learn coding with your personal AI teacher.</p>
+              <h1>CodeQuest AI Tutor</h1>
+              <p className="heroSupport">
+                Built for KS3, GCSE and A-Level Computer Science. Ask questions, practise tasks, and get instant
+                feedback.
+              </p>
               <div className="landingChecklist">
-                <p>Practice coding challenges</p>
-                <p>Get instant AI feedback</p>
-                <p>Track your progress</p>
+                <p>Ask anything in coding</p>
+                <p>Practise tasks with quizzes and hints</p>
+                <p>Get instant feedback and improvements</p>
               </div>
               <div className="heroActions">
                 <button type="button" className="sendBtn heroStartBtn" onClick={handleGetStarted}>
-                  Start Free Lesson
+                  Start learning free
                 </button>
-                <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
-                  View Pricing
+                <button
+                  type="button"
+                  className="modeBtn"
+                  onClick={() => {
+                    document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                >
+                  See how it works
                 </button>
               </div>
               <p className="heroCredit">No credit card required</p>
@@ -1473,24 +1483,24 @@ error_text = stderr_capture.getvalue() + runtime_error
               <div className="landingFeatureCards">
                 <article>
                   <img className="featureIcon" src="/icons/apple-touch-icon.png" alt="" />
-                  <h3>AI Tutor Chat</h3>
-                  <p>Get help and answers anytime.</p>
+                  <h3>Ask anything</h3>
+                  <p>Explain loops, recursion, SQL, Python, algorithms...</p>
                 </article>
                 <article>
                   <img className="featureIcon" src="/icons/apple-touch-icon.png" alt="" />
-                  <h3>Instant Code Feedback</h3>
-                  <p>Receive immediate AI feedback on your code.</p>
+                  <h3>Practise tasks</h3>
+                  <p>Quizzes plus coding challenges with hints.</p>
                 </article>
                 <article>
                   <img className="featureIcon" src="/icons/apple-touch-icon.png" alt="" />
-                  <h3>Progress Tracking</h3>
-                  <p>Track your learning progress and achievements.</p>
+                  <h3>Get feedback</h3>
+                  <p>Step-by-step explanations and improvements.</p>
                 </article>
               </div>
 
               <div className="landingTrust">
-                <h3>Trusted by students worldwide</h3>
-                <p>4.9 ★★★★★</p>
+                <h3>Used by learners across multiple countries</h3>
+                <p>1K+ interactions • Global users</p>
               </div>
 
               <div className="landingQuote">
@@ -1608,24 +1618,24 @@ error_text = stderr_capture.getvalue() + runtime_error
               </div>
             </section>
 
-            <section className="landingSection roadmapSection">
+            <section id="how-it-works" className="landingSection roadmapSection">
               <p className="sectionEyebrow">How it works</p>
-              <h2>From confusion to confidence in 3 steps</h2>
+              <h2>Three steps. No confusion. Just progress.</h2>
               <div className="roadmapGrid">
                 <article>
                   <span>01</span>
-                  <h3>Ask your coding question</h3>
-                  <p>Write your question in plain English and choose your topic level.</p>
+                  <h3>Ask anything</h3>
+                  <p>Explain loops, recursion, SQL, Python, algorithms...</p>
                 </article>
                 <article>
                   <span>02</span>
-                  <h3>Get guided explanations</h3>
-                  <p>The AI tutor explains logic, gives hints, and adapts to your mistakes.</p>
+                  <h3>Practise tasks</h3>
+                  <p>Quizzes plus coding challenges with hints.</p>
                 </article>
                 <article>
                   <span>03</span>
-                  <h3>Practice and improve</h3>
-                  <p>Run code in the browser, review feedback, and track your progress over time.</p>
+                  <h3>Get feedback</h3>
+                  <p>Step-by-step explanations and improvements.</p>
                 </article>
               </div>
             </section>
