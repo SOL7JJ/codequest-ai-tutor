@@ -865,8 +865,20 @@ button:disabled {
 .mobileToolsToggle {
   margin-top: 8px;
   width: 100%;
-  min-height: 44px;
-  border-style: dashed;
+  min-height: 46px;
+  border: 1px solid #7fa7d7;
+  border-style: solid;
+  background: linear-gradient(180deg, #edf5ff 0%, #dcecff 100%);
+  color: #123f71;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 20px rgba(24, 83, 157, 0.18);
+}
+
+.mobileToolsToggle:hover {
+  background: linear-gradient(180deg, #e6f1ff 0%, #d4e8ff 100%);
+  border-color: #6e9ad0;
+  box-shadow: 0 12px 24px rgba(24, 83, 157, 0.24);
 }
 
 .mobileBackToChatBtn {
@@ -2290,7 +2302,7 @@ button:disabled {
 
   .mobileToolsToggle {
     margin-top: 0;
-    min-height: 42px;
+    min-height: 46px;
   }
 
   .starterLogoutBtn {
