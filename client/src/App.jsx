@@ -1358,7 +1358,7 @@ error_text = stderr_capture.getvalue() + runtime_error
             </button>
           </header>
           <div className="landingTagRow">
-            <span className="landingTag">Built for KS3 · GCSE · A-Level</span>
+            <span className="landingTag">Built for KS3 · GCSE · A-Level · T-Level</span>
           </div>
 
           <section className="landingHero landingHeroSingle">
@@ -1366,7 +1366,7 @@ error_text = stderr_capture.getvalue() + runtime_error
               className={`landingCopy ${isMobileViewport && mobileStartUnlocked ? "landingCopyLocked" : ""}`}
               ref={landingCopyRef}
             >
-              <p className="heroKicker">Designed by a Computer Science teacher using AI coaching.</p>
+              <p className="heroKicker">Designed by a Computer Science instructor using AI coaching.</p>
               <h1>Learn Coding Faster with AI-Powered Tutoring</h1>
               <div className="landingChecklist">
                 <p>Practice coding challenges</p>
