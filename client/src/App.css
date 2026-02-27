@@ -1860,6 +1860,13 @@ button:disabled {
     padding: 12px 10px calc(24px + env(safe-area-inset-bottom));
   }
 
+  .wrap.wrapScrollable {
+    height: auto;
+    min-height: 100svh;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
   .brand h1 {
     font-size: 2rem;
   }

@@ -1503,7 +1503,7 @@ error_text = stderr_capture.getvalue() + runtime_error
   }
 
   return (
-    <div className="wrap">
+    <div className={`wrap ${viewMode === "dashboard" || viewMode === "teacher" ? "wrapScrollable" : ""}`}>
       <header className="top">
         <div className="brand">
           <h1>CodeQuest AI Tutor</h1>
