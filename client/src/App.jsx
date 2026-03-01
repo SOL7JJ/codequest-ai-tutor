@@ -18,15 +18,29 @@ const DEMO_QUESTIONS = [
   "How do functions return values in Python?",
   "What is the difference between while and for loops?",
 ];
-const IDE_TEMPLATES = {
-  python: `# Python starter
+const STARTER_SNIPPETS = {
+  python: [
+    `# Python starter
 name = "CodeQuest"
 print(f"Hello, {name}!")
 
 for i in range(1, 4):
     print("Step", i)
 `,
-  javascript: `// JavaScript starter
+    `# Python list starter
+scores = [20, 15, 30, 25, 18]
+average = sum(scores) / len(scores)
+print("Average score:", round(average, 2))
+`,
+    `# Python function starter
+def greet(name):
+    return f"Welcome, {name}!"
+
+print(greet("Student"))
+`,
+  ],
+  javascript: [
+    `// JavaScript starter
 const name = "CodeQuest";
 console.log(\`Hello, ${name}!\`);
 
@@ -34,7 +48,55 @@ for (let i = 1; i <= 3; i += 1) {
   console.log("Step", i);
 }
 `,
+    `// JavaScript array starter
+const scores = [20, 15, 30, 25, 18];
+const average = scores.reduce((sum, n) => sum + n, 0) / scores.length;
+console.log("Average score:", average.toFixed(2));
+`,
+    `// JavaScript function starter
+function greet(name) {
+  return \`Welcome, ${name}!\`;
+}
+
+console.log(greet("Student"));
+`,
+  ],
+  java: [
+    `// Java starter
+public class Main {
+  public static void main(String[] args) {
+    String name = "CodeQuest";
+    System.out.println("Hello, " + name + "!");
+  }
+}
+`,
+    `// Java array starter
+public class Main {
+  public static void main(String[] args) {
+    int[] scores = {20, 15, 30, 25, 18};
+    int total = 0;
+    for (int s : scores) total += s;
+    double average = (double) total / scores.length;
+    System.out.println("Average score: " + average);
+  }
+}
+`,
+    `// Java method starter
+public class Main {
+  static String greet(String name) {
+    return "Welcome, " + name + "!";
+  }
+
+  public static void main(String[] args) {
+    System.out.println(greet("Student"));
+  }
+}
+`,
+  ],
 };
+const IDE_TEMPLATES = Object.fromEntries(
+  Object.entries(STARTER_SNIPPETS).map(([language, snippets]) => [language, snippets[0]])
+);
 
 const TOPICS_BY_LEVEL = {
   KS3: [
@@ -149,6 +211,9 @@ export default function App() {
 
   const [codeLanguage, setCodeLanguage] = useState("python");
   const [ideDrafts, setIdeDrafts] = useState(() => ({ ...IDE_TEMPLATES }));
+  const [starterVariantByLanguage, setStarterVariantByLanguage] = useState(() =>
+    Object.fromEntries(Object.keys(STARTER_SNIPPETS).map((language) => [language, 0]))
+  );
   const [codeEvalLoading, setCodeEvalLoading] = useState(false);
   const [codeEvalError, setCodeEvalError] = useState("");
   const [codeEvalResult, setCodeEvalResult] = useState(null);
@@ -888,6 +953,16 @@ export default function App() {
     setIdeDrafts((prev) => ({ ...prev, [codeLanguage]: value }));
   }
 
+  function handleResetStarterCode() {
+    const snippets = STARTER_SNIPPETS[codeLanguage] || [IDE_TEMPLATES[codeLanguage] || ""];
+    const currentIndex = starterVariantByLanguage[codeLanguage] ?? 0;
+    const nextIndex = (currentIndex + 1) % snippets.length;
+    setStarterVariantByLanguage((prev) => ({ ...prev, [codeLanguage]: nextIndex }));
+    setIdeDrafts((prev) => ({ ...prev, [codeLanguage]: snippets[nextIndex] }));
+    setIdeOutput("");
+    setIdeRunError("");
+  }
+
   function scrollToIdeOutput() {
     window.setTimeout(() => {
       ideOutputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -905,6 +980,13 @@ export default function App() {
     setIdeOutput("Running...");
 
     try {
+      if (codeLanguage === "java") {
+        setIdeRunError("Java execution is not available in-browser yet. Use Evaluate with AI for Java feedback.");
+        setIdeOutput("No output (Java runtime is not available in-browser).");
+        scrollToIdeOutput();
+        return;
+      }
+
       if (codeLanguage === "javascript") {
         const jsOutput = await runJavaScriptInWorker(codeInput);
         setIdeOutput(jsOutput || "No output (use console.log(...) to display values).");
@@ -2161,7 +2243,7 @@ error_text = stderr_capture.getvalue() + runtime_error
 
               <div className="tips">
                 <h4>Student IDE</h4>
-                <p>Run Python or JavaScript code in-browser and inspect the output.</p>
+                <p>Run Python or JavaScript code in-browser and inspect the output. Java is supported for starter snippets and AI evaluation.</p>
                 <div className="ideLanguageTabs">
                   <button
                     type="button"
@@ -2177,23 +2259,36 @@ error_text = stderr_capture.getvalue() + runtime_error
                   >
                     JavaScript
                   </button>
+                  <button
+                    type="button"
+                    className={`modeBtn ${codeLanguage === "java" ? "active" : ""}`}
+                    onClick={() => handleLanguageChange("java")}
+                  >
+                    Java
+                  </button>
                 </div>
                 <div className="ideShell">
                   <div className="ideHead">
-                    <strong>{codeLanguage === "python" ? "main.py" : "main.js"}</strong>
-                    <span>{codeLanguage === "python" ? "print(...)" : "console.log(...)"}</span>
+                    <strong>{codeLanguage === "python" ? "main.py" : codeLanguage === "javascript" ? "main.js" : "Main.java"}</strong>
+                    <span>{codeLanguage === "python" ? "print(...)" : codeLanguage === "javascript" ? "console.log(...)" : "System.out.println(...)"}</span>
                   </div>
                   <textarea
                     className="ideEditor"
                     value={codeInput}
                     onChange={(e) => handleCodeInputChange(e.target.value)}
                     spellCheck="false"
-                    placeholder={codeLanguage === "python" ? "Write Python code..." : "Write JavaScript code..."}
+                    placeholder={
+                      codeLanguage === "python"
+                        ? "Write Python code..."
+                        : codeLanguage === "javascript"
+                          ? "Write JavaScript code..."
+                          : "Write Java code..."
+                    }
                     rows={11}
                   />
                   <div className="ideActions">
                     <button type="button" className="modeBtn active" onClick={handleRunCode} disabled={ideRunLoading}>
-                      {ideRunLoading ? "Running..." : `Run ${codeLanguage === "python" ? "Python" : "JavaScript"}`}
+                      {ideRunLoading ? "Running..." : `Run ${codeLanguage === "python" ? "Python" : codeLanguage === "javascript" ? "JavaScript" : "Java"}`}
                     </button>
                     <button
                       type="button"
@@ -2208,12 +2303,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                     <button
                       type="button"
                       className="modeBtn"
-                      onClick={() =>
-                        setIdeDrafts((prev) => ({
-                          ...prev,
-                          [codeLanguage]: IDE_TEMPLATES[codeLanguage],
-                        }))
-                      }
+                      onClick={handleResetStarterCode}
                     >
                       Reset starter
                     </button>
