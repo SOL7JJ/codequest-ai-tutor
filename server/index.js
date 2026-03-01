@@ -21,6 +21,8 @@ const MAX_OUTPUT_TOKENS = Number(process.env.MAX_OUTPUT_TOKENS || 350);
 const FREE_TIER_DAILY_TURNS = Number(process.env.FREE_TIER_DAILY_TURNS || 5);
 const AGENT_MAX_STEPS = Number(process.env.AGENT_MAX_STEPS || 4);
 const AGENT_MODEL = process.env.AGENT_MODEL || "gpt-4o-mini";
+const CODE_RUN_TIMEOUT_MS = Number(process.env.CODE_RUN_TIMEOUT_MS || 12000);
+const PISTON_API_URL = process.env.PISTON_API_URL || "https://emkc.org/api/v2/piston/execute";
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 const APP_URL = process.env.APP_URL || "http://localhost:5173";
@@ -1550,6 +1552,69 @@ app.post("/api/code/evaluate", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("Code evaluation error:", err);
     return res.status(500).json({ error: "Failed to evaluate code" });
+  }
+});
+
+app.post("/api/code/run", requireAuth, async (req, res) => {
+  const { code, language = "java" } = req.body || {};
+  if (!code || typeof code !== "string") {
+    return res.status(400).json({ error: "Code is required to run" });
+  }
+
+  const normalizedLanguage = String(language || "").trim().toLowerCase();
+  if (normalizedLanguage !== "java") {
+    return res.status(400).json({ error: "Only Java is supported by this runtime endpoint" });
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CODE_RUN_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(PISTON_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        language: "java",
+        version: "15.0.2",
+        files: [{ name: "Main.java", content: code }],
+      }),
+      signal: controller.signal,
+    });
+
+    const rawText = await response.text();
+    let data = null;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      // noop
+    }
+
+    if (!response.ok) {
+      return res.status(502).json({
+        error: data?.message || rawText || `Java runtime request failed (${response.status})`,
+      });
+    }
+
+    const run = data?.run || {};
+    const compile = data?.compile || {};
+    const stdout = String(run?.stdout || "");
+    const stderr = String(run?.stderr || "");
+    const compileOutput = String(compile?.stdout || "") + String(compile?.stderr || "");
+
+    return res.status(200).json({
+      output: stdout,
+      error: `${compileOutput}${stderr}`.trim(),
+      code: Number.isInteger(run?.code) ? run.code : 0,
+      signal: run?.signal || null,
+    });
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      return res.status(504).json({ error: `Java execution timed out after ${CODE_RUN_TIMEOUT_MS}ms` });
+    }
+    console.error("Java run error:", err);
+    return res.status(500).json({ error: "Failed to run Java code" });
+  } finally {
+    clearTimeout(timeoutId);
   }
 });
 

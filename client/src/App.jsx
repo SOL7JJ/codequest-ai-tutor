@@ -981,8 +981,13 @@ export default function App() {
 
     try {
       if (codeLanguage === "java") {
-        setIdeRunError("Java execution is not available in-browser yet. Use Evaluate with AI for Java feedback.");
-        setIdeOutput("No output (Java runtime is not available in-browser).");
+        const { res, data, rawText } = await fetchJson("/api/code/run", {
+          method: "POST",
+          body: JSON.stringify({ code: codeInput, language: "java" }),
+        });
+        if (!res.ok) throw new Error(data?.error || rawText || `Java run failed (${res.status})`);
+        if (data?.error) setIdeRunError(String(data.error));
+        setIdeOutput(String(data?.output || "No output (use System.out.println(...) to display values)."));
         scrollToIdeOutput();
         return;
       }
