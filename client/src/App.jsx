@@ -747,6 +747,11 @@ export default function App() {
   }
 }
 
+  function trackEvent(name, params = {}) {
+    if (typeof window.gtag !== "function") return;
+    window.gtag("event", name, params);
+  }
+
   useEffect(() => {
     const updateViewport = () => {
       const mobile = window.innerWidth <= 768;
@@ -795,6 +800,11 @@ export default function App() {
     const text = (forcedText ?? input).trim();
     if (!text || loading) return;
     trackFirstChatMessageSent();
+    trackEvent("question_asked_to_ai", {
+      topic,
+      mode,
+      level,
+    });
 
     setMessages((m) => [...m, { role: "user", content: text }, { role: "assistant", content: "" }]);
     setInput("");
@@ -1049,14 +1059,20 @@ error_text = stderr_capture.getvalue() + runtime_error
   async function handleCreateLesson(e) {
     e.preventDefault();
     if (!lessonTitle.trim()) return;
+    const nextLessonTitle = lessonTitle.trim();
+    const nextLessonTopic = lessonTopic.trim() || topic;
     setLessonSaving(true);
     try {
       const { res, data, rawText } = await fetchJson("/api/student/lessons", {
         method: "POST",
-        body: JSON.stringify({ title: lessonTitle.trim(), topic: lessonTopic.trim() || topic }),
+        body: JSON.stringify({ title: nextLessonTitle, topic: nextLessonTopic }),
       });
       if (!res.ok) throw new Error(data?.error || rawText || "Failed to create lesson");
       setLessons((prev) => [data.lesson, ...prev]);
+      trackEvent("lesson_started", {
+        lesson_name: nextLessonTitle,
+        topic: nextLessonTopic,
+      });
       setLessonTitle("");
       setLessonTopic("");
       fetchProgressOverview();
@@ -1075,6 +1091,13 @@ error_text = stderr_capture.getvalue() + runtime_error
       });
       if (!res.ok) throw new Error(data?.error || rawText || "Failed to update lesson");
       setLessons((prev) => prev.map((lesson) => (lesson.id === lessonId ? data.lesson : lesson)));
+      if (completed) {
+        trackEvent("lesson_completed", {
+          lesson_id: lessonId,
+          lesson_name: data?.lesson?.title || "",
+          topic: data?.lesson?.topic || "",
+        });
+      }
       fetchProgressOverview();
     } catch (err) {
       setProgressError(err?.message || "Failed to update lesson");
@@ -1111,6 +1134,13 @@ error_text = stderr_capture.getvalue() + runtime_error
       });
       if (!res.ok) throw new Error(data?.error || rawText || "Failed to update task status");
       setTasks((prev) => prev.map((task) => (task.id === taskId ? data.task : task)));
+      if (status === "completed") {
+        trackEvent("coding_challenge_solved", {
+          challenge_id: taskId,
+          challenge_name: data?.task?.title || "",
+          topic: data?.task?.topic || "",
+        });
+      }
     } catch (err) {
       setProgressError(err?.message || "Failed to update task status");
     } finally {
