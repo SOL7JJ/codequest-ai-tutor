@@ -58,39 +58,7 @@ function greet(name) {
   return \`Welcome, ${name}!\`;
 }
 
-console.log(greet("Student"));
-`,
-  ],
-  java: [
-    `// Java starter
-public class Main {
-  public static void main(String[] args) {
-    String name = "CodeQuest";
-    System.out.println("Hello, " + name + "!");
-  }
-}
-`,
-    `// Java array starter
-public class Main {
-  public static void main(String[] args) {
-    int[] scores = {20, 15, 30, 25, 18};
-    int total = 0;
-    for (int s : scores) total += s;
-    double average = (double) total / scores.length;
-    System.out.println("Average score: " + average);
-  }
-}
-`,
-    `// Java method starter
-public class Main {
-  static String greet(String name) {
-    return "Welcome, " + name + "!";
-  }
-
-  public static void main(String[] args) {
-    System.out.println(greet("Student"));
-  }
-}
+    console.log(greet("Student"));
 `,
   ],
 };
@@ -990,18 +958,6 @@ export default function App() {
     setIdeOutput("Running...");
 
     try {
-      if (codeLanguage === "java") {
-        const { res, data, rawText } = await fetchJson("/api/code/run", {
-          method: "POST",
-          body: JSON.stringify({ code: codeInput, language: "java" }),
-        });
-        if (!res.ok) throw new Error(data?.error || rawText || `Java run failed (${res.status})`);
-        if (data?.error) setIdeRunError(String(data.error));
-        setIdeOutput(String(data?.output || "No output (use System.out.println(...) to display values)."));
-        scrollToIdeOutput();
-        return;
-      }
-
       if (codeLanguage === "javascript") {
         const jsOutput = await runJavaScriptInWorker(codeInput);
         setIdeOutput(jsOutput || "No output (use console.log(...) to display values).");
@@ -2278,7 +2234,7 @@ error_text = stderr_capture.getvalue() + runtime_error
 
               <div className="tips">
                 <h4>Student IDE</h4>
-                <p>Run Python or JavaScript code in-browser and inspect the output. Java is supported for starter snippets and AI evaluation.</p>
+                <p>Run Python or JavaScript code in-browser and inspect the output.</p>
                 <div className="ideLanguageTabs">
                   <button
                     type="button"
@@ -2294,36 +2250,23 @@ error_text = stderr_capture.getvalue() + runtime_error
                   >
                     JavaScript
                   </button>
-                  <button
-                    type="button"
-                    className={`modeBtn ${codeLanguage === "java" ? "active" : ""}`}
-                    onClick={() => handleLanguageChange("java")}
-                  >
-                    Java
-                  </button>
                 </div>
                 <div className="ideShell">
                   <div className="ideHead">
-                    <strong>{codeLanguage === "python" ? "main.py" : codeLanguage === "javascript" ? "main.js" : "Main.java"}</strong>
-                    <span>{codeLanguage === "python" ? "print(...)" : codeLanguage === "javascript" ? "console.log(...)" : "System.out.println(...)"}</span>
+                    <strong>{codeLanguage === "python" ? "main.py" : "main.js"}</strong>
+                    <span>{codeLanguage === "python" ? "print(...)" : "console.log(...)"}</span>
                   </div>
                   <textarea
                     className="ideEditor"
                     value={codeInput}
                     onChange={(e) => handleCodeInputChange(e.target.value)}
                     spellCheck="false"
-                    placeholder={
-                      codeLanguage === "python"
-                        ? "Write Python code..."
-                        : codeLanguage === "javascript"
-                          ? "Write JavaScript code..."
-                          : "Write Java code..."
-                    }
+                    placeholder={codeLanguage === "python" ? "Write Python code..." : "Write JavaScript code..."}
                     rows={11}
                   />
                   <div className="ideActions">
                     <button type="button" className="modeBtn active" onClick={handleRunCode} disabled={ideRunLoading}>
-                      {ideRunLoading ? "Running..." : `Run ${codeLanguage === "python" ? "Python" : codeLanguage === "javascript" ? "JavaScript" : "Java"}`}
+                      {ideRunLoading ? "Running..." : `Run ${codeLanguage === "python" ? "Python" : "JavaScript"}`}
                     </button>
                     <button
                       type="button"
