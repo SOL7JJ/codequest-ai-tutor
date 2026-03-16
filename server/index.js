@@ -1526,7 +1526,7 @@ app.patch("/api/student/tasks/:taskId", requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/code/evaluate", requireAuth, async (req, res) => {
+app.post("/api/code/evaluate", requireAuth, tutorRateLimit, async (req, res) => {
   if (!requireDatabase(res)) return;
   const { code, language = "general", topic = "General" } = req.body || {};
   if (!code || typeof code !== "string") {
@@ -1555,7 +1555,7 @@ app.post("/api/code/evaluate", requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/code/run", requireAuth, async (req, res) => {
+app.post("/api/code/run", requireAuth, tutorRateLimit, async (req, res) => {
   const { code, language = "java" } = req.body || {};
   if (!code || typeof code !== "string") {
     return res.status(400).json({ error: "Code is required to run" });
