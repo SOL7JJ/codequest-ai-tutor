@@ -276,7 +276,6 @@ button:disabled {
 
 .workspaceFilters {
   display: grid;
-  grid-template-columns: minmax(150px, 0.9fr) minmax(260px, 1.35fr) minmax(150px, 0.9fr);
   gap: 10px;
   margin: 0 0 12px;
   padding: 12px;
@@ -284,6 +283,16 @@ button:disabled {
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.88);
   box-shadow: 0 12px 28px rgba(18, 43, 80, 0.08);
+}
+
+.workspaceFiltersBody {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(260px, 1.35fr) minmax(150px, 0.9fr);
+  gap: 10px;
+}
+
+.workspaceFiltersToggle {
+  display: none;
 }
 
 .filterField {
@@ -2389,7 +2398,35 @@ button:disabled {
   }
 
   .workspaceFilters {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .workspaceFiltersToggle {
+    display: block;
+    width: 100%;
+    min-height: 42px;
+    text-align: left;
+    font-size: 0.88rem;
+    padding: 10px 12px;
+  }
+
+  .workspaceFiltersBody {
     grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .workspaceFiltersBody.collapsed {
+    display: none;
+  }
+
+  .filterField label {
+    font-size: 0.72rem;
+  }
+
+  .filterField select {
+    min-height: 40px;
+    font-size: 0.92rem;
   }
 
   .metricsGrid {

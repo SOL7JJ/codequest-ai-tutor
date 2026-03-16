@@ -167,6 +167,7 @@ export default function App() {
   const [studentDashTab, setStudentDashTab] = useState("overview");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [topMenuOpen, setTopMenuOpen] = useState(false);
+  const [mobileFiltersExpanded, setMobileFiltersExpanded] = useState(false);
 
   const [level, setLevel] = useState("KS3");
   const [topic, setTopic] = useState(TOPICS_BY_LEVEL.KS3[0]);
@@ -814,6 +815,7 @@ export default function App() {
       const mobile = window.innerWidth <= 768;
       setIsMobileViewport(mobile);
       if (!mobile) setMobileStartUnlocked(true);
+      if (!mobile) setMobileFiltersExpanded(false);
     };
 
     updateViewport();
@@ -2050,30 +2052,42 @@ error_text = stderr_capture.getvalue() + runtime_error
 
       {viewMode === "tutor" && (
         <section className="workspaceFilters">
-          <div className="filterField">
-            <label htmlFor="workspace-level">Level</label>
-            <select id="workspace-level" value={level} onChange={(e) => setLevel(e.target.value)}>
-              <option>KS3</option>
-              <option>GCSE</option>
-              <option>A-Level</option>
-            </select>
-          </div>
-          <div className="filterField filterFieldWide">
-            <label htmlFor="workspace-topic">Subject</label>
-            <select id="workspace-topic" value={topic} onChange={(e) => setTopic(e.target.value)}>
-              {levelTopics.map((topicOption) => (
-                <option key={topicOption}>{topicOption}</option>
-              ))}
-            </select>
-          </div>
-          <div className="filterField">
-            <label htmlFor="workspace-mode">Mode</label>
-            <select id="workspace-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
-              <option>Explain</option>
-              <option>Hint</option>
-              <option disabled={!isPaidPlan}>Quiz{isPaidPlan ? "" : " (Pro)"}</option>
-              <option disabled={!isPaidPlan}>Mark{isPaidPlan ? "" : " (Pro)"}</option>
-            </select>
+          {isMobileViewport && (
+            <button
+              type="button"
+              className={`modeBtn workspaceFiltersToggle ${mobileFiltersExpanded ? "active" : ""}`}
+              onClick={() => setMobileFiltersExpanded((prev) => !prev)}
+              aria-expanded={mobileFiltersExpanded}
+            >
+              {level} • {topic} • {mode}
+            </button>
+          )}
+          <div className={`workspaceFiltersBody ${isMobileViewport && !mobileFiltersExpanded ? "collapsed" : ""}`}>
+            <div className="filterField">
+              <label htmlFor="workspace-level">Level</label>
+              <select id="workspace-level" value={level} onChange={(e) => setLevel(e.target.value)}>
+                <option>KS3</option>
+                <option>GCSE</option>
+                <option>A-Level</option>
+              </select>
+            </div>
+            <div className="filterField filterFieldWide">
+              <label htmlFor="workspace-topic">Subject</label>
+              <select id="workspace-topic" value={topic} onChange={(e) => setTopic(e.target.value)}>
+                {levelTopics.map((topicOption) => (
+                  <option key={topicOption}>{topicOption}</option>
+                ))}
+              </select>
+            </div>
+            <div className="filterField">
+              <label htmlFor="workspace-mode">Mode</label>
+              <select id="workspace-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
+                <option>Explain</option>
+                <option>Hint</option>
+                <option disabled={!isPaidPlan}>Quiz{isPaidPlan ? "" : " (Pro)"}</option>
+                <option disabled={!isPaidPlan}>Mark{isPaidPlan ? "" : " (Pro)"}</option>
+              </select>
+            </div>
           </div>
         </section>
       )}
