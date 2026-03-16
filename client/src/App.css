@@ -2627,19 +2627,29 @@ button:disabled {
     flex-wrap: nowrap;
     padding-bottom: 2px;
     margin: 6px 0 8px;
-    gap: 6px;
+    gap: 4px;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .startersLabel {
+    font-size: 0.84rem;
+    margin-right: 2px;
   }
 
   .starters button {
     flex: 0 0 auto;
-    padding: 6px 10px;
-    font-size: 0.86rem;
+    padding: 5px 9px;
+    font-size: 0.82rem;
   }
 
   .starterLogoutBtn {
-    order: 99;
-    margin-left: auto;
+    order: 0;
+    margin-left: 0;
+    padding: 4px 8px;
+    min-height: 30px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    border-color: #d9c0c0;
   }
 
   .demoReplyShell {
