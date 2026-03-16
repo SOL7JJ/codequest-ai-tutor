@@ -1457,6 +1457,9 @@ error_text = stderr_capture.getvalue() + runtime_error
     !user && guestTrialStartedAt != null ? Math.max(0, GUEST_TRIAL_MS - (guestTrialTick - guestTrialStartedAt)) : 0;
   const guestTrialExpired = !user && guestTrialStartedAt != null && guestTrialRemainingMs <= 0;
   const guestTrialLabel = formatDuration(guestTrialRemainingMs);
+  const topHeaderLogo = (
+    <img className="topBrandLogoImage" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
+  );
   const idePanel = useMemo(
     () => (
       <div className="tips">
@@ -1755,6 +1758,7 @@ error_text = stderr_capture.getvalue() + runtime_error
       return (
         <div className="wrap mobileIdePage">
           <header className="top mobileIdeHeader">
+            {topHeaderLogo}
             <div className="brand">
               <h1>AI Tutor</h1>
               <p className="subtitle">IDE tools for your guest workspace.</p>
@@ -1778,6 +1782,7 @@ error_text = stderr_capture.getvalue() + runtime_error
     return (
       <div className="wrap guestWorkspace">
         <header className="top">
+          {topHeaderLogo}
           <div className="brand">
             <h1>AI Tutor</h1>
             <p className="subtitle">Learn Computer Science with an AI tutor that explains step-by-step.</p>
@@ -1988,6 +1993,7 @@ error_text = stderr_capture.getvalue() + runtime_error
     return (
       <div className="wrap mobileIdePage">
         <header className="top mobileIdeHeader">
+          {topHeaderLogo}
           <div className="brand">
             <h1>AI Tutor</h1>
             <p className="subtitle">IDE tools for your tutor workspace.</p>
@@ -2015,6 +2021,7 @@ error_text = stderr_capture.getvalue() + runtime_error
       }`}
     >
       <header className="top">
+        {topHeaderLogo}
         <div className="brand">
           <h1>AI Tutor</h1>
           <p className="subtitle">Learn Computer Science with an AI tutor that explains step-by-step.</p>

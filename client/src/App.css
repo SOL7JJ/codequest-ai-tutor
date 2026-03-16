@@ -60,6 +60,19 @@ body {
   margin-bottom: 12px;
 }
 
+.topBrandLogoImage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid #c3d4e8;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(32, 84, 148, 0.12);
+}
+
 .brand {
   width: 100%;
   text-align: center;
@@ -2327,6 +2340,12 @@ button:disabled {
     padding: 0 4px;
   }
 
+  .topBrandLogoImage {
+    width: 42px;
+    height: 42px;
+    border-radius: 11px;
+  }
+
   .topMenuToggle {
     width: 40px;
     height: 40px;
@@ -2334,8 +2353,14 @@ button:disabled {
 
   .guestWorkspace .top,
   .tutorWorkspace .top {
+    padding-left: 52px;
     padding-right: 56px;
     margin-bottom: 10px;
+  }
+
+  .mobileIdeHeader.top {
+    padding-left: 52px;
+    padding-right: 52px;
   }
 
   .landing {
