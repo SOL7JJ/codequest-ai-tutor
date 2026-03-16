@@ -1969,9 +1969,11 @@ button:disabled {
 }
 
 .guestIdeHint {
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   color: #4c6787;
-  font-size: 0.88rem;
+  font-size: 0.76rem;
+  line-height: 1.25;
+  text-align: center;
 }
 
 .guestPaywallOverlay {
@@ -2149,28 +2151,37 @@ button:disabled {
 }
 
 .mobileIdePage {
-  min-height: 100vh;
+  min-height: 100svh;
+  height: 100svh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   padding-top: 18px;
-  padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
 }
 
 .mobileIdeHeader {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+  flex: 0 0 auto;
 }
 
 .mobileIdeCard {
-  margin-top: 10px;
+  margin-top: 8px;
+  flex: 1;
+  min-height: 0;
 }
 
 .mobileIdePage .side {
-  width: min(100%, 680px);
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
   margin: 0 auto;
 }
 
 .mobileIdePage .tips {
   display: flex;
   flex-direction: column;
-  min-height: calc(100svh - 220px);
+  min-height: 100%;
   overflow: visible;
 }
 
@@ -2796,49 +2807,106 @@ button:disabled {
   }
 
   .mobileIdePage {
-    padding-top: 14px;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
   }
 
   .mobileIdeHeader .brand h1 {
-    font-size: clamp(2.2rem, 10vw, 3rem);
+    font-size: clamp(1.9rem, 8.6vw, 2.45rem);
+    line-height: 0.98;
   }
 
   .mobileIdeHeader .subtitle {
-    font-size: 1rem;
+    margin-top: 6px;
+    font-size: 0.92rem;
   }
 
   .mobileIdeCard {
-    margin-top: 8px;
+    margin-top: 6px;
   }
 
   .mobileIdePage .tips {
-    min-height: calc(100svh - 210px);
+    min-height: 100%;
+    padding-top: 8px;
+    margin-top: 0;
   }
 
   .mobileIdePage .ideShell {
     display: flex;
     flex-direction: column;
     flex: 1;
+    margin-top: 8px;
   }
 
   .mobileIdePage .ideEditor {
-    min-height: clamp(220px, 34svh, 420px);
+    min-height: clamp(230px, 37svh, 460px);
     max-height: none;
     flex: 1;
+    padding: 12px;
+    font-size: 0.84rem;
   }
 
   .mobileIdePage .ideActions {
     margin: 6px 8px;
+    gap: 6px;
+    padding: 6px;
   }
 
   .mobileIdePage .miniIdeOutput {
-    min-height: 120px;
-    max-height: clamp(180px, 24svh, 280px);
+    min-height: 92px;
+    max-height: clamp(120px, 16svh, 180px);
     flex: 0 0 auto;
   }
 
   .mobileIdePage .inlineForm {
+    margin-top: 6px;
+  }
+
+  .mobileIdePage .guestIdeHint {
+    margin-top: 3px;
+    font-size: 0.72rem;
+  }
+
+  .mobileIdePage .mobileBackToChatBtn {
+    margin-bottom: 6px;
+    min-height: 42px;
+  }
+
+  .mobileIdePage .tips h4 {
+    font-size: 0.98rem;
+  }
+
+  .mobileIdePage .tips p {
+    margin-top: 4px;
+    font-size: 0.86rem;
+    line-height: 1.32;
+  }
+
+  .mobileIdePage .ideLanguageTabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
     margin-top: 8px;
+  }
+
+  .mobileIdePage .modeBtn {
+    min-height: 40px;
+  }
+
+  .mobileIdePage .ideActions .modeBtn {
+    min-height: 34px;
+    font-size: 0.74rem;
+    padding: 6px 4px;
+  }
+
+  .mobileIdePage .inlineForm .modeBtn {
+    min-height: 40px;
+  }
+
+  .mobileIdePage .ideHead {
+    padding: 7px 10px;
+  }
+
+  .mobileIdePage .side {
+    padding: 10px;
   }
 
   .guestWorkspace .bubble,

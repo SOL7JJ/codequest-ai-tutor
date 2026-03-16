@@ -1528,12 +1528,12 @@ error_text = stderr_capture.getvalue() + runtime_error
             type="button"
             className="modeBtn"
             onClick={handleEvaluateCode}
-            disabled={codeEvalLoading || (!user && guestTrialExpired)}
+            disabled={codeEvalLoading || !user}
           >
             {codeEvalLoading ? "Evaluating..." : "Evaluate with AI"}
           </button>
+          {!user && <p className="guestIdeHint">AI code evaluation unlocks after free sign in or sign up.</p>}
         </div>
-        {!user && <p className="guestIdeHint">AI code evaluation unlocks after free signup.</p>}
         {codeEvalError && <p className="authError">{codeEvalError}</p>}
         {user && codeEvalResult && (
           <div className="meta">
