@@ -1,6 +1,6 @@
 {
-  "name": "CodeQuest AI Tutor",
-  "short_name": "CodeQuest",
+  "name": "AI Tutor",
+  "short_name": "AI Tutor",
   "description": "AI-powered tutoring for KS3, GCSE, and A-Level Computer Science.",
   "start_url": "/",
   "scope": "/",
