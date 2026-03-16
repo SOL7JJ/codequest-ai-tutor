@@ -12,7 +12,7 @@ const GUEST_TRIAL_STARTED_KEY = "codequest_guest_trial_started_at";
 const PENDING_PLAN_KEY = "codequest_pending_plan";
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const JS_RUN_TIMEOUT_MS = 4000;
-const GUEST_TRIAL_MS = 5 * 60 * 1000;
+const GUEST_TRIAL_MS = 10 * 60 * 1000;
 const DEMO_MAX_TRIES = 5;
 const DEMO_QUESTIONS = [
   "How do Python loops work?",
@@ -1828,7 +1828,7 @@ error_text = stderr_capture.getvalue() + runtime_error
         <section className="guestTrialBanner">
           <div>
             <h3>Guest workspace preview</h3>
-            <p>Use the tutor and IDE for 5 minutes. After that, create an account to continue.</p>
+            <p>Use the tutor and IDE for 10 minutes. After that, create an account to continue.</p>
           </div>
           <div className="guestTrialMeta">
             <strong>{guestTrialLabel}</strong>
