@@ -2416,8 +2416,10 @@ button:disabled {
   }
 
   .wrap {
-    height: 100svh;
-    overflow: hidden;
+    height: auto;
+    min-height: 100svh;
+    overflow-x: hidden;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     padding: 12px 10px calc(24px + env(safe-area-inset-bottom));
@@ -2452,15 +2454,15 @@ button:disabled {
     flex: 1;
     height: auto;
     max-height: none;
-    min-height: 0;
+    min-height: 50svh;
     border-radius: 14px;
     padding: 12px;
   }
 
   .chatColumn {
-    height: 100%;
+    height: auto;
     min-height: 0;
-    padding-bottom: calc(190px + env(safe-area-inset-bottom));
+    padding-bottom: calc(148px + env(safe-area-inset-bottom));
   }
 
   .layout {
