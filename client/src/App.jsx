@@ -1457,6 +1457,102 @@ error_text = stderr_capture.getvalue() + runtime_error
     !user && guestTrialStartedAt != null ? Math.max(0, GUEST_TRIAL_MS - (guestTrialTick - guestTrialStartedAt)) : 0;
   const guestTrialExpired = !user && guestTrialStartedAt != null && guestTrialRemainingMs <= 0;
   const guestTrialLabel = formatDuration(guestTrialRemainingMs);
+  const idePanel = useMemo(
+    () => (
+      <div className="tips">
+        <h4>Student IDE</h4>
+        <p>Run Python or JavaScript code in-browser and inspect the output.</p>
+        <div className="ideLanguageTabs">
+          <button
+            type="button"
+            className={`modeBtn ${codeLanguage === "python" ? "active" : ""}`}
+            onClick={() => handleLanguageChange("python")}
+          >
+            Python
+          </button>
+          <button
+            type="button"
+            className={`modeBtn ${codeLanguage === "javascript" ? "active" : ""}`}
+            onClick={() => handleLanguageChange("javascript")}
+          >
+            JavaScript
+          </button>
+        </div>
+        <div className="ideShell">
+          <div className="ideHead">
+            <strong>{codeLanguage === "python" ? "main.py" : "main.js"}</strong>
+            <span>{codeLanguage === "python" ? "print(...)" : "console.log(...)"}</span>
+          </div>
+          <textarea
+            className="ideEditor"
+            value={codeInput}
+            onChange={(e) => handleCodeInputChange(e.target.value)}
+            spellCheck="false"
+            placeholder={codeLanguage === "python" ? "Write Python code..." : "Write JavaScript code..."}
+            rows={11}
+            disabled={!user && guestTrialExpired}
+          />
+          <div className="ideActions">
+            <button
+              type="button"
+              className="modeBtn active"
+              onClick={handleRunCode}
+              disabled={ideRunLoading || (!user && guestTrialExpired)}
+            >
+              {ideRunLoading ? "Running..." : `Run ${codeLanguage === "python" ? "Python" : "JavaScript"}`}
+            </button>
+            <button
+              type="button"
+              className="modeBtn"
+              onClick={() => {
+                setIdeOutput("");
+                setIdeRunError("");
+              }}
+            >
+              Clear output
+            </button>
+            <button
+              type="button"
+              className="modeBtn"
+              onClick={handleResetStarterCode}
+              disabled={!user && guestTrialExpired}
+            >
+              Reset starter
+            </button>
+          </div>
+          <pre ref={ideOutputRef} className="miniIdeOutput">{ideOutput || "Output will appear here..."}</pre>
+          {ideRunError && <pre className="miniIdeError">{ideRunError}</pre>}
+        </div>
+        <div className="inlineForm">
+          <button
+            type="button"
+            className="modeBtn"
+            onClick={handleEvaluateCode}
+            disabled={codeEvalLoading || (!user && guestTrialExpired)}
+          >
+            {codeEvalLoading ? "Evaluating..." : "Evaluate with AI"}
+          </button>
+        </div>
+        {!user && <p className="guestIdeHint">AI code evaluation unlocks after free signup.</p>}
+        {codeEvalError && <p className="authError">{codeEvalError}</p>}
+        {user && codeEvalResult && (
+          <div className="meta">
+            <p><strong>Score:</strong> {codeEvalResult.score}/10</p>
+            <p>{codeEvalResult.summary}</p>
+            <p><strong>Improvements:</strong></p>
+            <ul>
+              {codeEvalResult.improvements?.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+            <p><strong>Tips:</strong></p>
+            <ul>
+              {codeEvalResult.tips?.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </div>
+        )}
+      </div>
+    ),
+    [codeEvalError, codeEvalLoading, codeEvalResult, codeInput, codeLanguage, guestTrialExpired, ideRunError, ideRunLoading, ideOutput, user]
+  );
 
   if (authChecking) {
     return (
@@ -1655,6 +1751,30 @@ error_text = stderr_capture.getvalue() + runtime_error
       );
     }
 
+    if (isMobileViewport && currentPath === "/tools") {
+      return (
+        <div className="wrap mobileIdePage">
+          <header className="top mobileIdeHeader">
+            <div className="brand">
+              <h1>CodeQuest AI Tutor</h1>
+              <p className="subtitle">IDE tools for your guest workspace.</p>
+            </div>
+          </header>
+          <button
+            type="button"
+            className="modeBtn mobileBackToChatBtn"
+            onClick={() => {
+              goToPath("/");
+              chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >
+            Back to chat
+          </button>
+          <section className="mobileIdeCard">{idePanel}</section>
+        </div>
+      );
+    }
+
     return (
       <div className="wrap guestWorkspace">
         <header className="top">
@@ -1801,94 +1921,9 @@ error_text = stderr_capture.getvalue() + runtime_error
             </div>
           </div>
 
-          {(!isMobileViewport || currentPath === "/tools") && (
+          {!isMobileViewport && (
             <aside className="side" ref={sideRef}>
-              {isMobileViewport && currentPath === "/tools" && (
-                <button
-                  type="button"
-                  className="modeBtn mobileBackToChatBtn"
-                  onClick={() => {
-                    goToPath("/");
-                    chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                >
-                  Back to chat
-                </button>
-              )}
-              {currentPath !== "/tools" && (
-                <>
-                  <h3>Quick actions</h3>
-                  <div className="actions">
-                    <button type="button" onClick={() => setMode("Explain")} className={`modeBtn ${mode === "Explain" ? "active" : ""}`}>Explain</button>
-                    <button type="button" onClick={() => setMode("Hint")} className={`modeBtn ${mode === "Hint" ? "active" : ""}`}>Hint</button>
-                    <button type="button" className="modeBtn" disabled>Quiz (Account)</button>
-                    <button type="button" className="modeBtn" disabled>Mark (Account)</button>
-                  </div>
-                </>
-              )}
-
-              <div className="tips">
-                <h4>Student IDE</h4>
-                <p>Run Python or JavaScript code in-browser and inspect the output.</p>
-                <div className="ideLanguageTabs">
-                  <button
-                    type="button"
-                    className={`modeBtn ${codeLanguage === "python" ? "active" : ""}`}
-                    onClick={() => handleLanguageChange("python")}
-                  >
-                    Python
-                  </button>
-                  <button
-                    type="button"
-                    className={`modeBtn ${codeLanguage === "javascript" ? "active" : ""}`}
-                    onClick={() => handleLanguageChange("javascript")}
-                  >
-                    JavaScript
-                  </button>
-                </div>
-                <div className="ideShell">
-                  <div className="ideHead">
-                    <strong>{codeLanguage === "python" ? "main.py" : "main.js"}</strong>
-                    <span>{codeLanguage === "python" ? "print(...)" : "console.log(...)"}</span>
-                  </div>
-                  <textarea
-                    className="ideEditor"
-                    value={codeInput}
-                    onChange={(e) => handleCodeInputChange(e.target.value)}
-                    spellCheck="false"
-                    placeholder={codeLanguage === "python" ? "Write Python code..." : "Write JavaScript code..."}
-                    rows={11}
-                    disabled={guestTrialExpired}
-                  />
-                  <div className="ideActions">
-                    <button type="button" className="modeBtn active" onClick={handleRunCode} disabled={ideRunLoading || guestTrialExpired}>
-                      {ideRunLoading ? "Running..." : `Run ${codeLanguage === "python" ? "Python" : "JavaScript"}`}
-                    </button>
-                    <button
-                      type="button"
-                      className="modeBtn"
-                      onClick={() => {
-                        setIdeOutput("");
-                        setIdeRunError("");
-                      }}
-                    >
-                      Clear output
-                    </button>
-                    <button type="button" className="modeBtn" onClick={handleResetStarterCode} disabled={guestTrialExpired}>
-                      Reset starter
-                    </button>
-                  </div>
-                  <pre ref={ideOutputRef} className="miniIdeOutput">{ideOutput || "Output will appear here..."}</pre>
-                  {ideRunError && <pre className="miniIdeError">{ideRunError}</pre>}
-                </div>
-                <div className="inlineForm">
-                  <button type="button" className="modeBtn" onClick={handleEvaluateCode} disabled={codeEvalLoading || guestTrialExpired}>
-                    {codeEvalLoading ? "Evaluating..." : "Evaluate with AI"}
-                  </button>
-                </div>
-                <p className="guestIdeHint">AI code evaluation unlocks after free signup.</p>
-                {codeEvalError && <p className="authError">{codeEvalError}</p>}
-              </div>
+              {idePanel}
             </aside>
           )}
         </div>
@@ -1945,6 +1980,30 @@ error_text = stderr_capture.getvalue() + runtime_error
             </div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (viewMode === "tutor" && isMobileViewport && currentPath === "/tools") {
+    return (
+      <div className="wrap mobileIdePage">
+        <header className="top mobileIdeHeader">
+          <div className="brand">
+            <h1>CodeQuest AI Tutor</h1>
+            <p className="subtitle">IDE tools for your tutor workspace.</p>
+          </div>
+        </header>
+        <button
+          type="button"
+          className="modeBtn mobileBackToChatBtn"
+          onClick={() => {
+            goToPath("/");
+            chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        >
+          Back to chat
+        </button>
+        <section className="mobileIdeCard">{idePanel}</section>
       </div>
     );
   }
@@ -2382,111 +2441,10 @@ error_text = stderr_capture.getvalue() + runtime_error
               </div>
             </div>
 
-            {(!isMobileViewport || currentPath === "/tools") && (
-            <aside className="side" ref={sideRef}>
-              {isMobileViewport && currentPath === "/tools" && (
-                <button
-                  type="button"
-                  className="modeBtn mobileBackToChatBtn"
-                  onClick={() => {
-                    goToPath("/");
-                    chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                >
-                  Back to chat
-                </button>
-              )}
-              {currentPath !== "/tools" && (
-                <>
-                  <h3>Quick actions</h3>
-                  <div className="actions">
-                    <button type="button" onClick={() => setMode("Explain")} className={`modeBtn ${mode === "Explain" ? "active" : ""}`}>Explain</button>
-                    <button type="button" onClick={() => setMode("Hint")} className={`modeBtn ${mode === "Hint" ? "active" : ""}`}>Hint</button>
-                    <button type="button" onClick={() => setMode("Quiz")} className={`modeBtn ${mode === "Quiz" ? "active" : ""}`} disabled={!isPaidPlan}>{isPaidPlan ? "Quiz" : "Quiz (Pro)"}</button>
-                    <button type="button" onClick={() => setMode("Mark")} className={`modeBtn ${mode === "Mark" ? "active" : ""}`} disabled={!isPaidPlan}>{isPaidPlan ? "Mark" : "Mark (Pro)"}</button>
-                  </div>
-                </>
-              )}
-
-              <div className="tips">
-                <h4>Student IDE</h4>
-                <p>Run Python or JavaScript code in-browser and inspect the output.</p>
-                <div className="ideLanguageTabs">
-                  <button
-                    type="button"
-                    className={`modeBtn ${codeLanguage === "python" ? "active" : ""}`}
-                    onClick={() => handleLanguageChange("python")}
-                  >
-                    Python
-                  </button>
-                  <button
-                    type="button"
-                    className={`modeBtn ${codeLanguage === "javascript" ? "active" : ""}`}
-                    onClick={() => handleLanguageChange("javascript")}
-                  >
-                    JavaScript
-                  </button>
-                </div>
-                <div className="ideShell">
-                  <div className="ideHead">
-                    <strong>{codeLanguage === "python" ? "main.py" : "main.js"}</strong>
-                    <span>{codeLanguage === "python" ? "print(...)" : "console.log(...)"}</span>
-                  </div>
-                  <textarea
-                    className="ideEditor"
-                    value={codeInput}
-                    onChange={(e) => handleCodeInputChange(e.target.value)}
-                    spellCheck="false"
-                    placeholder={codeLanguage === "python" ? "Write Python code..." : "Write JavaScript code..."}
-                    rows={11}
-                  />
-                  <div className="ideActions">
-                    <button type="button" className="modeBtn active" onClick={handleRunCode} disabled={ideRunLoading}>
-                      {ideRunLoading ? "Running..." : `Run ${codeLanguage === "python" ? "Python" : "JavaScript"}`}
-                    </button>
-                    <button
-                      type="button"
-                      className="modeBtn"
-                      onClick={() => {
-                        setIdeOutput("");
-                        setIdeRunError("");
-                      }}
-                    >
-                      Clear output
-                    </button>
-                    <button
-                      type="button"
-                      className="modeBtn"
-                      onClick={handleResetStarterCode}
-                    >
-                      Reset starter
-                    </button>
-                  </div>
-                  <pre ref={ideOutputRef} className="miniIdeOutput">{ideOutput || "Output will appear here..."}</pre>
-                  {ideRunError && <pre className="miniIdeError">{ideRunError}</pre>}
-                </div>
-                <div className="inlineForm">
-                  <button type="button" className="modeBtn" onClick={handleEvaluateCode} disabled={codeEvalLoading}>
-                    {codeEvalLoading ? "Evaluating..." : "Evaluate with AI"}
-                  </button>
-                </div>
-                {codeEvalError && <p className="authError">{codeEvalError}</p>}
-                {codeEvalResult && (
-                  <div className="meta">
-                    <p><strong>Score:</strong> {codeEvalResult.score}/10</p>
-                    <p>{codeEvalResult.summary}</p>
-                    <p><strong>Improvements:</strong></p>
-                    <ul>
-                      {codeEvalResult.improvements?.map((item) => <li key={item}>{item}</li>)}
-                    </ul>
-                    <p><strong>Tips:</strong></p>
-                    <ul>
-                      {codeEvalResult.tips?.map((item) => <li key={item}>{item}</li>)}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </aside>
+            {!isMobileViewport && (
+              <aside className="side" ref={sideRef}>
+                {idePanel}
+              </aside>
             )}
           </div>
         </>

@@ -2148,6 +2148,32 @@ button:disabled {
   overflow: auto;
 }
 
+.mobileIdePage {
+  min-height: 100vh;
+  padding-top: 18px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
+}
+
+.mobileIdeHeader {
+  margin-bottom: 10px;
+}
+
+.mobileIdeCard {
+  margin-top: 10px;
+}
+
+.mobileIdePage .side {
+  width: min(100%, 680px);
+  margin: 0 auto;
+}
+
+.mobileIdePage .tips {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100svh - 220px);
+  overflow: visible;
+}
+
 .freePlanBanner {
   margin: 10px 0 14px;
   border: 1px solid #e9d8a8;
@@ -2749,7 +2775,7 @@ button:disabled {
   .guestWorkspace .chatDock.mobile,
   .tutorWorkspace .chatDock.mobile {
     gap: 8px;
-    padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+    padding: 10px 0 calc(18px + env(safe-area-inset-bottom));
     border-radius: 0;
   }
 
@@ -2766,6 +2792,53 @@ button:disabled {
     border-radius: 18px;
     font-size: 1rem;
     font-weight: 800;
+    margin-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .mobileIdePage {
+    padding-top: 14px;
+  }
+
+  .mobileIdeHeader .brand h1 {
+    font-size: clamp(2.2rem, 10vw, 3rem);
+  }
+
+  .mobileIdeHeader .subtitle {
+    font-size: 1rem;
+  }
+
+  .mobileIdeCard {
+    margin-top: 8px;
+  }
+
+  .mobileIdePage .tips {
+    min-height: calc(100svh - 210px);
+  }
+
+  .mobileIdePage .ideShell {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  .mobileIdePage .ideEditor {
+    min-height: clamp(220px, 34svh, 420px);
+    max-height: none;
+    flex: 1;
+  }
+
+  .mobileIdePage .ideActions {
+    margin: 6px 8px;
+  }
+
+  .mobileIdePage .miniIdeOutput {
+    min-height: 120px;
+    max-height: clamp(180px, 24svh, 280px);
+    flex: 0 0 auto;
+  }
+
+  .mobileIdePage .inlineForm {
+    margin-top: 8px;
   }
 
   .guestWorkspace .bubble,
