@@ -2576,7 +2576,7 @@ button:disabled {
   .chatColumn {
     height: auto;
     min-height: 0;
-    padding-bottom: calc(136px + env(safe-area-inset-bottom));
+    padding-bottom: 0;
   }
 
   .layout {
@@ -2696,17 +2696,13 @@ button:disabled {
   }
 
   .chatDock.mobile {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 60;
+    position: static;
     display: grid;
     gap: 6px;
-    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
     background: #e7f0fb;
-    border-top: 1px solid #cfdced;
-    box-shadow: 0 -10px 24px rgba(18, 43, 80, 0.12);
+    border-top: 0;
+    box-shadow: none;
     overflow: hidden;
   }
 
@@ -2742,8 +2738,8 @@ button:disabled {
   .guestWorkspace .chatDock.mobile,
   .tutorWorkspace .chatDock.mobile {
     gap: 8px;
-    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
-    border-radius: 18px 18px 0 0;
+    padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+    border-radius: 0;
   }
 
   .guestWorkspace .composer,
