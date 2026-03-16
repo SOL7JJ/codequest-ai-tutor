@@ -1558,7 +1558,7 @@ error_text = stderr_capture.getvalue() + runtime_error
     return (
       <div className="authShell">
         <section className="authCard authLoadingCard">
-          <h1>CodeQuest AI Tutor</h1>
+          <h1>AI Tutor</h1>
           <p>Preparing your learning workspace...</p>
         </section>
       </div>
@@ -1572,7 +1572,7 @@ error_text = stderr_capture.getvalue() + runtime_error
           <header className="landingTop">
             <div className="landingBrand">
               <img className="landingLogoImage" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
-              <span>CodeQuest AI Tutor</span>
+              <span>AI Tutor</span>
             </div>
             <button type="button" className="modeBtn" onClick={() => goToPath("/")}>
               Back
@@ -1670,7 +1670,7 @@ error_text = stderr_capture.getvalue() + runtime_error
             <header className="landingTop">
               <div className="landingBrand">
                 <img className="landingLogoImage" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
-                <span>CodeQuest AI Tutor</span>
+                <span>AI Tutor</span>
               </div>
               <button type="button" className="modeBtn" onClick={() => goToPath("/")}>
                 Back
@@ -1756,7 +1756,7 @@ error_text = stderr_capture.getvalue() + runtime_error
         <div className="wrap mobileIdePage">
           <header className="top mobileIdeHeader">
             <div className="brand">
-              <h1>CodeQuest AI Tutor</h1>
+              <h1>AI Tutor</h1>
               <p className="subtitle">IDE tools for your guest workspace.</p>
             </div>
           </header>
@@ -1779,7 +1779,7 @@ error_text = stderr_capture.getvalue() + runtime_error
       <div className="wrap guestWorkspace">
         <header className="top">
           <div className="brand">
-            <h1>CodeQuest AI Tutor</h1>
+            <h1>AI Tutor</h1>
             <p className="subtitle">Learn Computer Science with an AI tutor that explains step-by-step.</p>
           </div>
 
@@ -1989,7 +1989,7 @@ error_text = stderr_capture.getvalue() + runtime_error
       <div className="wrap mobileIdePage">
         <header className="top mobileIdeHeader">
           <div className="brand">
-            <h1>CodeQuest AI Tutor</h1>
+            <h1>AI Tutor</h1>
             <p className="subtitle">IDE tools for your tutor workspace.</p>
           </div>
         </header>
@@ -2016,7 +2016,7 @@ error_text = stderr_capture.getvalue() + runtime_error
     >
       <header className="top">
         <div className="brand">
-          <h1>CodeQuest AI Tutor</h1>
+          <h1>AI Tutor</h1>
           <p className="subtitle">Learn Computer Science with an AI tutor that explains step-by-step.</p>
         </div>
 
