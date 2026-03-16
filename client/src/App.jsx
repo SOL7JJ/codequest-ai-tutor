@@ -2017,25 +2017,6 @@ error_text = stderr_capture.getvalue() + runtime_error
                   Log out
                 </button>
               </div>
-
-              <div className="controls">
-                <select value={level} onChange={(e) => setLevel(e.target.value)}>
-                  <option>KS3</option>
-                  <option>GCSE</option>
-                  <option>A-Level</option>
-                </select>
-                <select value={topic} onChange={(e) => setTopic(e.target.value)}>
-                  {levelTopics.map((topicOption) => (
-                    <option key={topicOption}>{topicOption}</option>
-                  ))}
-                </select>
-                <select value={mode} onChange={(e) => setMode(e.target.value)}>
-                  <option>Explain</option>
-                  <option>Hint</option>
-                  <option disabled={!isPaidPlan}>Quiz{isPaidPlan ? "" : " (Pro)"}</option>
-                  <option disabled={!isPaidPlan}>Mark{isPaidPlan ? "" : " (Pro)"}</option>
-                </select>
-              </div>
             </div>
           )}
         </div>
@@ -2066,6 +2047,36 @@ error_text = stderr_capture.getvalue() + runtime_error
           <button type="button" className={`modeBtn ${viewMode === "teacher" ? "active" : ""}`} onClick={() => { setViewMode("teacher"); fetchTeacherResults(); }}>Teacher Dashboard</button>
         )}
       </div>
+
+      {viewMode === "tutor" && (
+        <section className="workspaceFilters">
+          <div className="filterField">
+            <label htmlFor="workspace-level">Level</label>
+            <select id="workspace-level" value={level} onChange={(e) => setLevel(e.target.value)}>
+              <option>KS3</option>
+              <option>GCSE</option>
+              <option>A-Level</option>
+            </select>
+          </div>
+          <div className="filterField filterFieldWide">
+            <label htmlFor="workspace-topic">Subject</label>
+            <select id="workspace-topic" value={topic} onChange={(e) => setTopic(e.target.value)}>
+              {levelTopics.map((topicOption) => (
+                <option key={topicOption}>{topicOption}</option>
+              ))}
+            </select>
+          </div>
+          <div className="filterField">
+            <label htmlFor="workspace-mode">Mode</label>
+            <select id="workspace-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
+              <option>Explain</option>
+              <option>Hint</option>
+              <option disabled={!isPaidPlan}>Quiz{isPaidPlan ? "" : " (Pro)"}</option>
+              <option disabled={!isPaidPlan}>Mark{isPaidPlan ? "" : " (Pro)"}</option>
+            </select>
+          </div>
+        </section>
+      )}
 
       {viewMode === "dashboard" && (
         <section className="dashboard">
