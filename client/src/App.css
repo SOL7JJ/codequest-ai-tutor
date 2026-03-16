@@ -2491,21 +2491,21 @@ button:disabled {
   .guestWorkspace .guestTrialMeta {
     width: 100%;
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: auto 1fr;
     gap: 10px;
-    justify-items: stretch;
+    align-items: center;
   }
 
   .guestWorkspace .guestTrialMeta strong {
     justify-self: start;
-    min-width: 132px;
-    min-height: 52px;
-    font-size: 1.05rem;
+    min-width: 116px;
+    min-height: 48px;
+    font-size: 1rem;
   }
 
   .guestWorkspace .guestTrialMeta .modeBtn {
-    min-height: 50px;
-    font-size: 1rem;
+    min-height: 48px;
+    font-size: 0.96rem;
     font-weight: 800;
   }
 
@@ -2541,7 +2541,8 @@ button:disabled {
   }
 
   .brand h1 {
-    font-size: 1.82rem;
+    font-size: clamp(1.42rem, 7.6vw, 1.72rem);
+    line-height: 1.08;
   }
 
   .subtitle {
