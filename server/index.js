@@ -16,13 +16,17 @@ const STREAM_CHUNK_SIZE = Number(process.env.STREAM_CHUNK_SIZE || 28);
 const STREAM_CHUNK_DELAY_MS = Number(process.env.STREAM_CHUNK_DELAY_MS || 22);
 const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60000);
 const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 20);
-const DEMO_RATE_LIMIT_MAX = Number(process.env.DEMO_RATE_LIMIT_MAX || 5);
+const DEMO_RATE_LIMIT_MAX = Number(process.env.DEMO_RATE_LIMIT_MAX || 20);
 const MAX_OUTPUT_TOKENS = Number(process.env.MAX_OUTPUT_TOKENS || 350);
 const FREE_TIER_DAILY_TURNS = Number(process.env.FREE_TIER_DAILY_TURNS || 5);
 const AGENT_MAX_STEPS = Number(process.env.AGENT_MAX_STEPS || 4);
 const AGENT_MODEL = process.env.AGENT_MODEL || "gpt-4o-mini";
 const CODE_RUN_TIMEOUT_MS = Number(process.env.CODE_RUN_TIMEOUT_MS || 12000);
 const PISTON_API_URL = process.env.PISTON_API_URL || "https://emkc.org/api/v2/piston/execute";
+const JUDGE0_API_URL = process.env.JUDGE0_API_URL || "";
+const JUDGE0_API_KEY = process.env.JUDGE0_API_KEY || "";
+const JUDGE0_API_HOST = process.env.JUDGE0_API_HOST || "";
+const JUDGE0_LANGUAGE_ID_JAVA = Number(process.env.JUDGE0_LANGUAGE_ID_JAVA || 62);
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 const APP_URL = process.env.APP_URL || "http://localhost:5173";
@@ -1570,43 +1574,107 @@ app.post("/api/code/run", requireAuth, tutorRateLimit, async (req, res) => {
   const timeoutId = setTimeout(() => controller.abort(), CODE_RUN_TIMEOUT_MS);
 
   try {
-    const response = await fetch(PISTON_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        language: "java",
-        version: "15.0.2",
-        files: [{ name: "Main.java", content: code }],
-      }),
-      signal: controller.signal,
-    });
+    const runJavaWithJudge0 = async () => {
+      if (!JUDGE0_API_URL) return null;
+      const baseUrl = JUDGE0_API_URL.replace(/\/+$/, "");
+      const endpoint = `${baseUrl}/submissions?base64_encoded=false&wait=true`;
+      const headers = { "Content-Type": "application/json" };
+      if (JUDGE0_API_KEY) headers["X-RapidAPI-Key"] = JUDGE0_API_KEY;
+      if (JUDGE0_API_HOST) headers["X-RapidAPI-Host"] = JUDGE0_API_HOST;
 
-    const rawText = await response.text();
-    let data = null;
-    try {
-      data = JSON.parse(rawText);
-    } catch {
-      // noop
-    }
-
-    if (!response.ok) {
-      return res.status(502).json({
-        error: data?.message || rawText || `Java runtime request failed (${response.status})`,
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          language_id: JUDGE0_LANGUAGE_ID_JAVA,
+          source_code: code,
+        }),
+        signal: controller.signal,
       });
+
+      const rawText = await response.text();
+      let data = null;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        // noop
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.message || rawText || `Judge0 request failed (${response.status})`);
+      }
+
+      return {
+        output: String(data?.stdout || ""),
+        error: `${String(data?.compile_output || "")}${String(data?.stderr || "")}${String(data?.message || "")}`.trim(),
+        code: Number.isInteger(data?.status?.id) ? data.status.id : 0,
+        signal: null,
+      };
+    };
+
+    const runJavaWithPiston = async () => {
+      const response = await fetch(PISTON_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          language: "java",
+          version: "15.0.2",
+          files: [{ name: "Main.java", content: code }],
+        }),
+        signal: controller.signal,
+      });
+
+      const rawText = await response.text();
+      let data = null;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        // noop
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.message || rawText || `Java runtime request failed (${response.status})`);
+      }
+
+      const run = data?.run || {};
+      const compile = data?.compile || {};
+      const stdout = String(run?.stdout || "");
+      const stderr = String(run?.stderr || "");
+      const compileOutput = String(compile?.stdout || "") + String(compile?.stderr || "");
+
+      return {
+        output: stdout,
+        error: `${compileOutput}${stderr}`.trim(),
+        code: Number.isInteger(run?.code) ? run.code : 0,
+        signal: run?.signal || null,
+      };
+    };
+
+    let result = null;
+    let judge0Error = "";
+    if (JUDGE0_API_URL) {
+      try {
+        result = await runJavaWithJudge0();
+      } catch (err) {
+        judge0Error = err?.message || "Judge0 execution failed";
+      }
     }
 
-    const run = data?.run || {};
-    const compile = data?.compile || {};
-    const stdout = String(run?.stdout || "");
-    const stderr = String(run?.stderr || "");
-    const compileOutput = String(compile?.stdout || "") + String(compile?.stderr || "");
+    if (!result) {
+      try {
+        result = await runJavaWithPiston();
+      } catch (err) {
+        const pistonError = err?.message || "Piston execution failed";
+        const message = [judge0Error, pistonError].filter(Boolean).join(" | ");
+        return res.status(502).json({
+          error:
+            message ||
+            "Java runtime failed. Configure JUDGE0_API_URL (+ key/host if needed) or host your own Piston instance.",
+        });
+      }
+    }
 
-    return res.status(200).json({
-      output: stdout,
-      error: `${compileOutput}${stderr}`.trim(),
-      code: Number.isInteger(run?.code) ? run.code : 0,
-      signal: run?.signal || null,
-    });
+    return res.status(200).json(result);
   } catch (err) {
     if (err?.name === "AbortError") {
       return res.status(504).json({ error: `Java execution timed out after ${CODE_RUN_TIMEOUT_MS}ms` });

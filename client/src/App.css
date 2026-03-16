@@ -1855,6 +1855,237 @@ button:disabled {
   margin: 8px 0 0;
 }
 
+.guestMenuPanel .guestControls {
+  grid-template-columns: 1fr;
+}
+
+.guestMenuPanel .modeBtn {
+  width: 100%;
+}
+
+.guestTrialBanner {
+  margin: 10px 0 14px;
+  border: 1px solid #cfe0f0;
+  background: linear-gradient(180deg, rgba(245, 250, 255, 0.96) 0%, rgba(235, 244, 255, 0.98) 100%);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  box-shadow: 0 12px 28px rgba(20, 54, 96, 0.08);
+}
+
+.guestTrialBanner h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  color: #173c68;
+  font-size: 1rem;
+}
+
+.guestTrialBanner p {
+  margin: 6px 0 0;
+  color: #486587;
+}
+
+.guestTrialMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.guestTrialMeta strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 86px;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid #b9cfe6;
+  background: #fff;
+  color: #173d68;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.guestIdeHint {
+  margin: 8px 0 0;
+  color: #4c6787;
+  font-size: 0.88rem;
+}
+
+.guestPaywallOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(10, 24, 42, 0.58);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.guestPaywallCard {
+  width: min(980px, 100%);
+  max-height: min(90vh, 920px);
+  overflow: auto;
+}
+
+.guestPricingGrid {
+  margin-top: 18px;
+}
+
+.tutorWorkspace {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-top: 18px;
+  padding-bottom: 14px;
+}
+
+.tutorWorkspace .top {
+  margin-bottom: 8px;
+}
+
+.tutorWorkspace .subtitle {
+  margin-top: 4px;
+}
+
+.tutorWorkspace .inlineNotice {
+  margin-top: 4px;
+}
+
+.tutorWorkspace .freePlanBanner {
+  margin: 8px 0 10px;
+  padding: 10px 12px;
+}
+
+.tutorWorkspace .freePlanBanner h3 {
+  font-size: 0.94rem;
+}
+
+.tutorWorkspace .freePlanBanner p {
+  margin-top: 4px;
+  font-size: 0.92rem;
+}
+
+.tutorWorkspace .workspaceTabs {
+  margin: 8px 0 10px;
+}
+
+.tutorWorkspace .starters {
+  margin: 8px 0 10px;
+}
+
+.tutorWorkspace .layout {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.tutorWorkspace .chatColumn {
+  min-height: 0;
+}
+
+.tutorWorkspace .chat {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
+.tutorWorkspace .chatDock {
+  margin-top: 10px;
+}
+
+.tutorWorkspace .side {
+  position: static;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tutorWorkspace .tips {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.guestWorkspace {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-top: 18px;
+  padding-bottom: 14px;
+}
+
+.guestWorkspace .top {
+  margin-bottom: 8px;
+}
+
+.guestWorkspace .subtitle {
+  margin-top: 4px;
+}
+
+.guestWorkspace .guestTrialBanner {
+  margin: 6px 0 10px;
+  padding: 12px 14px;
+}
+
+.guestWorkspace .workspaceTabs {
+  margin: 8px 0 10px;
+}
+
+.guestWorkspace .starters {
+  margin: 8px 0 10px;
+}
+
+.guestWorkspace .layout {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.guestWorkspace .chatColumn {
+  min-height: 0;
+}
+
+.guestWorkspace .chat {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
+.guestWorkspace .chatDock {
+  margin-top: 10px;
+}
+
+.guestWorkspace .side {
+  position: static;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.guestWorkspace .tips {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
 .freePlanBanner {
   margin: 10px 0 14px;
   border: 1px solid #e9d8a8;
@@ -1918,6 +2149,18 @@ button:disabled {
 }
 
 @media (max-width: 960px) {
+  .tutorWorkspace {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .guestWorkspace {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
   .metricsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1932,6 +2175,16 @@ button:disabled {
 
   .pricingGrid {
     grid-template-columns: 1fr;
+  }
+
+  .guestTrialBanner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .guestTrialMeta {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .heroPanels {

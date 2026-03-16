@@ -8,8 +8,11 @@ const LAST_EMAIL_KEY = "codequest_last_email";
 const CHECKOUT_NOTICE_KEY = "codequest_checkout_notice";
 const FIRST_CHAT_MESSAGE_TRACKED_KEY = "codequest_first_chat_message_tracked";
 const AUTH_SUCCESS_TRACKED_KEY = "auth_tracked";
+const GUEST_TRIAL_STARTED_KEY = "codequest_guest_trial_started_at";
+const PENDING_PLAN_KEY = "codequest_pending_plan";
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const JS_RUN_TIMEOUT_MS = 4000;
+const GUEST_TRIAL_MS = 2 * 60 * 1000;
 const DEMO_MAX_TRIES = 5;
 const DEMO_QUESTIONS = [
   "How do Python loops work?",
@@ -112,6 +115,13 @@ function isSubscriptionActive(status) {
   return status === "active" || status === "trialing";
 }
 
+function formatDuration(ms) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 export default function App() {
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname || "/");
   const [user, setUser] = useState(null);
@@ -130,6 +140,17 @@ export default function App() {
   const [demoReply, setDemoReply] = useState("");
   const [demoError, setDemoError] = useState("");
   const [demoUsageCount, setDemoUsageCount] = useState(0);
+  const [guestTrialStartedAt, setGuestTrialStartedAt] = useState(() => {
+    try {
+      const rawValue = sessionStorage.getItem(GUEST_TRIAL_STARTED_KEY);
+      if (!rawValue) return null;
+      const parsed = Number(rawValue);
+      return Number.isFinite(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  });
+  const [guestTrialTick, setGuestTrialTick] = useState(() => Date.now());
 
   const [billingStatus, setBillingStatus] = useState("inactive");
   const [billingPlan, setBillingPlan] = useState("free");
@@ -569,7 +590,32 @@ export default function App() {
       setUser(data.user);
       setEmail(data.user?.email || normalizedEmail);
       setPassword("");
-      setCheckoutNotice("");
+      const pendingPlan = (() => {
+        try {
+          return sessionStorage.getItem(PENDING_PLAN_KEY) || "";
+        } catch {
+          return "";
+        }
+      })();
+
+      if (pendingPlan === "pro" || pendingPlan === "premium") {
+        clearPendingPlan();
+        setCheckoutMessage("");
+        goToPath("/");
+        window.setTimeout(() => {
+          handleStartSubscription(pendingPlan);
+        }, 0);
+        return;
+      }
+
+      if (pendingPlan === "free") {
+        clearPendingPlan();
+        setCheckoutMessage("Free plan active. Continue with daily limits.");
+        goToPath("/");
+        return;
+      }
+
+      setCheckoutMessage("");
       goToPath("/");
     } catch (err) {
       if (err?.name === "AbortError") {
@@ -683,6 +729,49 @@ export default function App() {
     goToPath("/auth");
   }
 
+  function rememberPendingPlan(plan) {
+    try {
+      sessionStorage.setItem(PENDING_PLAN_KEY, plan);
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  function clearPendingPlan() {
+    try {
+      sessionStorage.removeItem(PENDING_PLAN_KEY);
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  function setCheckoutMessage(message) {
+    setCheckoutNotice(message);
+    try {
+      if (!message) sessionStorage.removeItem(CHECKOUT_NOTICE_KEY);
+      else sessionStorage.setItem(CHECKOUT_NOTICE_KEY, message);
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  function handleGuestPlanChoice(plan) {
+    const normalizedPlan = plan === "premium" ? "premium" : plan === "pro" ? "pro" : "free";
+    rememberPendingPlan(normalizedPlan);
+    setAuthMode("signup");
+
+    if (normalizedPlan === "free") {
+      setCheckoutMessage("Create a free account to continue in limited mode.");
+      goToPath("/auth");
+      return;
+    }
+
+    setCheckoutMessage(
+      `Create your account to continue with ${normalizedPlan === "premium" ? "Premium" : "Pro"}.`
+    );
+    goToPath("/auth");
+  }
+
   function trackAuthSuccess() {
     try {
       if (sessionStorage.getItem(AUTH_SUCCESS_TRACKED_KEY)) return;
@@ -732,6 +821,26 @@ export default function App() {
     return () => window.removeEventListener("resize", updateViewport);
   }, []);
 
+  useEffect(() => {
+    if (user || currentPath !== "/" || guestTrialStartedAt) return;
+    const startedAt = Date.now();
+    setGuestTrialStartedAt(startedAt);
+    setGuestTrialTick(startedAt);
+    try {
+      sessionStorage.setItem(GUEST_TRIAL_STARTED_KEY, String(startedAt));
+    } catch {
+      // ignore storage errors
+    }
+  }, [user, currentPath, guestTrialStartedAt]);
+
+  useEffect(() => {
+    if (user || guestTrialStartedAt == null) return undefined;
+    const intervalId = window.setInterval(() => {
+      setGuestTrialTick(Date.now());
+    }, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [user, guestTrialStartedAt]);
+
   async function handleStartSubscription(targetPlan = "pro") {
     setBillingActionLoading(true);
     setBillingError("");
@@ -767,6 +876,11 @@ export default function App() {
     if (e?.preventDefault) e.preventDefault();
     const text = (forcedText ?? input).trim();
     if (!text || loading) return;
+    if (!user && guestTrialExpired) {
+      setCheckoutMessage("Your guest preview ended. Create an account to continue.");
+      goToPath("/");
+      return;
+    }
     trackFirstChatMessageSent();
     trackEvent("question_asked_to_ai", {
       topic,
@@ -806,6 +920,17 @@ export default function App() {
     };
 
     const nonStreamCall = async () => {
+      if (!user) {
+        const { res, data, rawText } = await fetchJson("/api/demo/tutor", {
+          method: "POST",
+          body: JSON.stringify({ message: text }),
+        });
+        if (!res.ok) throw new Error(data?.error || rawText || "Guest tutor preview is unavailable right now.");
+        const reply = data?.reply ?? "No reply returned.";
+        await revealAssistantContent(reply);
+        return;
+      }
+
       const { res, data, rawText } = await fetchJson("/api/tutor", {
         method: "POST",
         body: JSON.stringify({ message: text, level, topic, mode }),
@@ -894,12 +1019,22 @@ export default function App() {
       ]);
     } finally {
       setLoading(false);
-      fetchProgressOverview();
-      fetchBillingStatus();
+      if (user) {
+        fetchProgressOverview();
+        fetchBillingStatus();
+      }
     }
   }
 
   async function handleEvaluateCode() {
+    if (!user) {
+      setCodeEvalError(
+        guestTrialExpired
+          ? "Your guest preview ended. Create an account to continue."
+          : "Create a free account to unlock AI code evaluation."
+      );
+      return;
+    }
     if (!codeInput.trim()) {
       setCodeEvalError("Paste code to evaluate.");
       return;
@@ -948,6 +1083,11 @@ export default function App() {
   }
 
   async function handleRunCode() {
+    if (!user && guestTrialExpired) {
+      setIdeRunError("Your guest preview ended. Create an account to continue.");
+      setIdeOutput("");
+      return;
+    }
     if (!codeInput.trim()) {
       setIdeRunError("Write some code first.");
       return;
@@ -1311,6 +1451,10 @@ error_text = stderr_capture.getvalue() + runtime_error
       : `${billingDailyRemaining}/${billingDailyLimit} free turns left today`;
   const demoRemaining = Math.max(DEMO_MAX_TRIES - demoUsageCount, 0);
   const demoReachedLimit = demoUsageCount >= DEMO_MAX_TRIES;
+  const guestTrialRemainingMs =
+    !user && guestTrialStartedAt != null ? Math.max(0, GUEST_TRIAL_MS - (guestTrialTick - guestTrialStartedAt)) : 0;
+  const guestTrialExpired = !user && guestTrialStartedAt != null && guestTrialRemainingMs <= 0;
+  const guestTrialLabel = formatDuration(guestTrialRemainingMs);
 
   if (authChecking) {
     return (
@@ -1348,8 +1492,18 @@ error_text = stderr_capture.getvalue() + runtime_error
                   <li>5 sessions/day</li>
                   <li>Basic tutor (Explain + Hint)</li>
                 </ul>
-                <button type="button" className="modeBtn" onClick={() => goToPath("/")}>
-                  Start Free
+                <button
+                  type="button"
+                  className="modeBtn"
+                  onClick={() => {
+                    if (!user) {
+                      handleGuestPlanChoice("free");
+                      return;
+                    }
+                    goToPath("/");
+                  }}
+                >
+                  {user ? "Continue Free" : "Create Free Account"}
                 </button>
               </article>
 
@@ -1367,9 +1521,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                   className="sendBtn"
                   onClick={() => {
                     if (!user) {
-                      setAuthMode("signup");
-                      setCheckoutNotice("Create your account, then choose Pro or Premium.");
-                      goToPath("/");
+                      handleGuestPlanChoice("pro");
                       return;
                     }
                     handleStartSubscription("pro");
@@ -1395,9 +1547,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                   className="sendBtn"
                   onClick={() => {
                     if (!user) {
-                      setAuthMode("signup");
-                      setCheckoutNotice("Create your account, then choose Pro or Premium.");
-                      goToPath("/");
+                      handleGuestPlanChoice("premium");
                       return;
                     }
                     handleStartSubscription("premium");
@@ -1504,304 +1654,305 @@ error_text = stderr_capture.getvalue() + runtime_error
     }
 
     return (
-      <div className="authShell">
-        <main className="landing">
-          <header className="landingTop">
-            <div className="landingBrand">
-              <img className="landingLogoImage" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
-              <span>CodeQuest AI Tutor</span>
-            </div>
-            {!(isMobileViewport && mobileStartUnlocked) && (
-              <button type="button" className="modeBtn landingLoginBtn" onClick={() => openAuthPage("login")}>
-                Login
-              </button>
-            )}
-          </header>
-          <div className="landingTagRow">
-            <span className="landingTag">Built for KS3 · GCSE · A-Level · T-Level</span>
+      <div className="wrap guestWorkspace">
+        <header className="top">
+          <div className="brand">
+            <h1>CodeQuest AI Tutor</h1>
+            <p className="subtitle">Learn Computer Science with an AI tutor that explains step-by-step.</p>
           </div>
 
-          <section className="landingHero landingHeroSingle">
-            <div
-              className={`landingCopy ${isMobileViewport && mobileStartUnlocked ? "landingCopyLocked" : ""}`}
-              ref={landingCopyRef}
+          <div className="topMenuWrap" ref={topMenuRef}>
+            <button
+              type="button"
+              className={`topMenuToggle ${topMenuOpen ? "open" : ""}`}
+              aria-expanded={topMenuOpen}
+              aria-label="Open guest menu"
+              onClick={() => setTopMenuOpen((prev) => !prev)}
             >
-              <p className="heroKicker">Learn coding with your personal AI teacher.</p>
-              <h1>CodeQuest AI Tutor</h1>
-              <p className="heroSupport">
-                Built for KS3, GCSE and A-Level Computer Science. Ask questions, practise tasks, and get instant
-                feedback.
-              </p>
-              <div className="landingChecklist">
-                <p>Ask anything in coding</p>
-                <p>Practise tasks with quizzes and hints</p>
-                <p>Get instant feedback and improvements</p>
-              </div>
-              <div className="heroActions">
-                <button type="button" className="sendBtn heroStartBtn" onClick={handleGetStarted}>
-                  Start learning free
-                </button>
-                <button
-                  type="button"
-                  className="modeBtn"
-                  onClick={() => {
-                    document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                >
-                  See how it works
-                </button>
-              </div>
-              <p className="heroCredit">No credit card required</p>
+              <span />
+              <span />
+              <span />
+            </button>
 
-              <div className="landingFeatureCards">
-                <article>
-                  <img className="featureIcon" src="/icons/apple-touch-icon.png" alt="" />
-                  <h3>Ask anything</h3>
-                  <p>Explain loops, recursion, SQL, Python, algorithms...</p>
-                </article>
-                <article>
-                  <img className="featureIcon" src="/icons/apple-touch-icon.png" alt="" />
-                  <h3>Practise tasks</h3>
-                  <p>Quizzes plus coding challenges with hints.</p>
-                </article>
-                <article>
-                  <img className="featureIcon" src="/icons/apple-touch-icon.png" alt="" />
-                  <h3>Get feedback</h3>
-                  <p>Step-by-step explanations and improvements.</p>
-                </article>
+            {topMenuOpen && (
+              <div className="topMenuPanel guestMenuPanel">
+                <div className="badges">
+                  <span className="badge">Guest preview</span>
+                  <span className="badge">Time left: {guestTrialLabel}</span>
+                </div>
+                <div className="controls guestControls">
+                  <button type="button" className="modeBtn" onClick={() => openAuthPage("login")}>
+                    Login
+                  </button>
+                  <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
+                    Create Free Account
+                  </button>
+                  <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
+                    View Plans
+                  </button>
+                </div>
               </div>
+            )}
+          </div>
+        </header>
 
-              <div className="landingTrust">
-                <h3>Used by learners across multiple countries</h3>
-                <p>1K+ interactions • Global users</p>
-              </div>
+        {checkoutNotice && <p className="paywallNotice inlineNotice">{checkoutNotice}</p>}
 
-              <div className="landingQuote">
-                <p>“CodeQuest has made learning to code much easier. The AI tutor is always there when I’m stuck.”</p>
-                <strong>Claudia</strong>
-              </div>
+        <section className="guestTrialBanner">
+          <div>
+            <h3>Guest workspace preview</h3>
+            <p>Use the tutor and IDE for 2 minutes. After that, create an account to continue.</p>
+          </div>
+          <div className="guestTrialMeta">
+            <strong>{guestTrialLabel}</strong>
+            <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
+              Continue Free
+            </button>
+          </div>
+        </section>
 
-              <div className="heroLimitShell">
-                {demoReachedLimit && (
-                  <div className="heroLimitCta">
-                    <p>You reached the 5-question demo limit. Continue by upgrading or creating an account.</p>
-                    <div className="heroLimitActions">
-                      <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
-                        Upgrade
-                      </button>
-                      <button type="button" className="modeBtn" onClick={() => setAuthMode("signup")}>
-                        Create account
-                      </button>
+        <div className="workspaceTabs">
+          <button type="button" className="modeBtn active">Tutor Workspace</button>
+          <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
+            Student Dashboard
+          </button>
+        </div>
+
+        <div className="starters">
+          <span className="startersLabel">Try:</span>
+          {starterPrompts.map((p, idx) => (
+            <button
+              key={`${p.label}-${idx}`}
+              type="button"
+              onClick={() => sendMessage(null, p.text)}
+              disabled={loading || guestTrialExpired}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="layout">
+          <div className={`chatColumn ${isMobileViewport && currentPath === "/tools" ? "mobileHidden" : ""}`}>
+            <main className="chat" ref={chatRef}>
+              <div className={`chatStream ${isFreshSession ? "freshSession" : ""}`}>
+                {isFreshSession && !isMobileViewport && (
+                  <div className="emptyState" aria-hidden="true">
+                    <div className="emptyStateInner">
+                      <h3>Your learning session starts here</h3>
+                      <p>Pick a prompt or ask a question to get personalized guidance.</p>
+                    </div>
+                  </div>
+                )}
+
+                {messages.map((m, i) => (
+                  <div key={i} className={`msg ${m.role}`}>
+                    <div className="bubble"><ReactMarkdown>{m.content}</ReactMarkdown></div>
+                  </div>
+                ))}
+
+                {loading && (
+                  <div className="msg assistant">
+                    <div className="bubble typing" aria-live="polite">
+                      <span className="typingDot" />
+                      <span className="typingDot" />
+                      <span className="typingDot" />
                     </div>
                   </div>
                 )}
               </div>
-            </div>
+            </main>
 
-            <section
-              className={`authCard ${isMobileViewport && !mobileStartUnlocked ? "authCardLocked" : ""}`}
-              ref={authCardRef}
-            >
-              {isMobileViewport && mobileStartUnlocked && (
-                <div className="authCardTopRow">
-                  <button type="button" className="modeBtn authBackBtn" onClick={handleBackToIntro}>
-                    Back to intro
-                  </button>
-                  <button
-                    type="button"
-                    className="modeBtn authQuickBtn authLoginBtn"
-                    onClick={() => openAuthPage("login")}
-                  >
-                    Login
-                  </button>
-                  <button
-                    type="button"
-                    className="modeBtn authQuickBtn authSignupBtn"
-                    onClick={() => openAuthPage("signup")}
-                  >
-                    Sign Up
-                  </button>
-                </div>
+            <div className={`chatDock ${isMobileViewport ? "mobile" : ""}`}>
+              <form className="composer" onSubmit={sendMessage}>
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Ask a CS question..."
+                  disabled={guestTrialExpired}
+                />
+                <button
+                  type="button"
+                  className="modeBtn clearComposerBtn"
+                  onClick={handleClearChat}
+                  disabled={loading || isFreshSession}
+                >
+                  Clear chat
+                </button>
+                <button type="submit" disabled={loading || guestTrialExpired} className="sendBtn">
+                  {loading ? "Sending..." : "Send"}
+                </button>
+              </form>
+
+              {isMobileViewport && (
+                <button
+                  type="button"
+                  className="modeBtn mobileToolsToggle"
+                  onClick={() => {
+                    goToPath("/tools");
+                    sideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                >
+                  Show tools & IDE
+                </button>
               )}
-              <h2>Start your learning session</h2>
-              <p>Try a demo question first. Use Login or Sign Up to continue in your full workspace.</p>
+            </div>
+          </div>
 
-              <div className="demoCard">
-                <form className="inlineForm" onSubmit={handleDemoAsk}>
+          {(!isMobileViewport || currentPath === "/tools") && (
+            <aside className="side" ref={sideRef}>
+              {isMobileViewport && currentPath === "/tools" && (
+                <button
+                  type="button"
+                  className="modeBtn mobileBackToChatBtn"
+                  onClick={() => {
+                    goToPath("/");
+                    chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                >
+                  Back to chat
+                </button>
+              )}
+              {currentPath !== "/tools" && (
+                <>
+                  <h3>Quick actions</h3>
+                  <div className="actions">
+                    <button type="button" onClick={() => setMode("Explain")} className={`modeBtn ${mode === "Explain" ? "active" : ""}`}>Explain</button>
+                    <button type="button" onClick={() => setMode("Hint")} className={`modeBtn ${mode === "Hint" ? "active" : ""}`}>Hint</button>
+                    <button type="button" className="modeBtn" disabled>Quiz (Account)</button>
+                    <button type="button" className="modeBtn" disabled>Mark (Account)</button>
+                  </div>
+                </>
+              )}
+
+              <div className="tips">
+                <h4>Student IDE</h4>
+                <p>Run Python or JavaScript code in-browser and inspect the output.</p>
+                <div className="ideLanguageTabs">
+                  <button
+                    type="button"
+                    className={`modeBtn ${codeLanguage === "python" ? "active" : ""}`}
+                    onClick={() => handleLanguageChange("python")}
+                  >
+                    Python
+                  </button>
+                  <button
+                    type="button"
+                    className={`modeBtn ${codeLanguage === "javascript" ? "active" : ""}`}
+                    onClick={() => handleLanguageChange("javascript")}
+                  >
+                    JavaScript
+                  </button>
+                </div>
+                <div className="ideShell">
+                  <div className="ideHead">
+                    <strong>{codeLanguage === "python" ? "main.py" : "main.js"}</strong>
+                    <span>{codeLanguage === "python" ? "print(...)" : "console.log(...)"}</span>
+                  </div>
                   <textarea
-                    className="demoQuestionInput"
-                    value={demoQuestion}
-                    onChange={(e) => setDemoQuestion(e.target.value)}
-                    placeholder="Ask a coding question..."
-                    disabled={demoReachedLimit}
-                    rows={1}
+                    className="ideEditor"
+                    value={codeInput}
+                    onChange={(e) => handleCodeInputChange(e.target.value)}
+                    spellCheck="false"
+                    placeholder={codeLanguage === "python" ? "Write Python code..." : "Write JavaScript code..."}
+                    rows={11}
+                    disabled={guestTrialExpired}
                   />
-                  <button type="submit" className="modeBtn demoTryBtn" disabled={demoLoading || demoReachedLimit}>
-                    {demoLoading ? "Thinking..." : "Try demo"}
-                  </button>
-                </form>
-                <p className="demoMeta">Demo questions left: {demoRemaining}/{DEMO_MAX_TRIES}</p>
-                <div className="demoReplyShell">
-                  {demoError && <p className="authError">{demoError}</p>}
-                  {demoReply ? (
-                    <div className="demoReply">
-                      <ReactMarkdown>{demoReply}</ReactMarkdown>
-                      <p className="demoHint">Create a free account to continue learning with saved progress.</p>
-                    </div>
-                  ) : (
-                    <p className="demoPlaceholder">Demo response will appear here.</p>
-                  )}
+                  <div className="ideActions">
+                    <button type="button" className="modeBtn active" onClick={handleRunCode} disabled={ideRunLoading || guestTrialExpired}>
+                      {ideRunLoading ? "Running..." : `Run ${codeLanguage === "python" ? "Python" : "JavaScript"}`}
+                    </button>
+                    <button
+                      type="button"
+                      className="modeBtn"
+                      onClick={() => {
+                        setIdeOutput("");
+                        setIdeRunError("");
+                      }}
+                    >
+                      Clear output
+                    </button>
+                    <button type="button" className="modeBtn" onClick={handleResetStarterCode} disabled={guestTrialExpired}>
+                      Reset starter
+                    </button>
+                  </div>
+                  <pre ref={ideOutputRef} className="miniIdeOutput">{ideOutput || "Output will appear here..."}</pre>
+                  {ideRunError && <pre className="miniIdeError">{ideRunError}</pre>}
                 </div>
-                <div className="demoActions">
-                  <button
-                    type="button"
-                    className="modeBtn"
-                    onClick={() => {
-                      setDemoReply("");
-                      setDemoError("");
-                    }}
-                    disabled={!demoReply && !demoError}
-                  >
-                    Clear chat
-                  </button>
-                  <button
-                    type="button"
-                    className="modeBtn"
-                    onClick={handleResetDemoQuestion}
-                  >
-                    Reset question
+                <div className="inlineForm">
+                  <button type="button" className="modeBtn" onClick={handleEvaluateCode} disabled={codeEvalLoading || guestTrialExpired}>
+                    {codeEvalLoading ? "Evaluating..." : "Evaluate with AI"}
                   </button>
                 </div>
+                <p className="guestIdeHint">AI code evaluation unlocks after free signup.</p>
+                {codeEvalError && <p className="authError">{codeEvalError}</p>}
               </div>
-            </section>
-          </section>
+            </aside>
+          )}
+        </div>
 
-          <section className="landingLongForm">
-            <section className="landingSection trustStrip">
-              <p className="sectionEyebrow">Students and schools choose CodeQuest</p>
-              <div className="trustMetrics">
-                <article>
-                  <strong>12,000+</strong>
-                  <span>Questions answered</span>
+        {guestTrialExpired && (
+          <div className="guestPaywallOverlay">
+            <div className="paywallCard guestPaywallCard">
+              <p>Create a free account to continue in limited mode, or upgrade for more access.</p>
+              <div className="pricingGrid guestPricingGrid">
+                <article className="pricingCard">
+                  <h3>Free</h3>
+                  <p className="pricingPrice">£0 / month</p>
+                  <ul>
+                    <li>Daily limits</li>
+                    <li>Explain + Hint modes</li>
+                    <li>Continue from your workspace</li>
+                  </ul>
+                  <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
+                    Continue Free
+                  </button>
                 </article>
-                <article>
-                  <strong>94%</strong>
-                  <span>Students report faster understanding</span>
-                </article>
-                <article>
-                  <strong>4.9/5</strong>
-                  <span>Average tutor satisfaction score</span>
-                </article>
-                <article>
-                  <strong>KS3 to A-Level</strong>
-                  <span>Aligned to your curriculum level</span>
-                </article>
-              </div>
-            </section>
 
-            <section id="how-it-works" className="landingSection roadmapSection">
-              <p className="sectionEyebrow">How it works</p>
-              <h2>Three steps. No confusion. Just progress.</h2>
-              <div className="roadmapGrid">
-                <article>
-                  <span>01</span>
-                  <h3>Ask anything</h3>
-                  <p>Explain loops, recursion, SQL, Python, algorithms...</p>
+                <article className="pricingCard pricingCardPro">
+                  <h3>Pro</h3>
+                  <p className="pricingPrice">£4.99 / month</p>
+                  <ul>
+                    <li>Unlimited tutor sessions</li>
+                    <li>Exam-style marking</li>
+                    <li>Saved history and dashboards</li>
+                  </ul>
+                  <button type="button" className="sendBtn" onClick={() => handleGuestPlanChoice("pro")}>
+                    Choose Pro
+                  </button>
                 </article>
-                <article>
-                  <span>02</span>
-                  <h3>Practise tasks</h3>
-                  <p>Quizzes plus coding challenges with hints.</p>
-                </article>
-                <article>
-                  <span>03</span>
-                  <h3>Get feedback</h3>
-                  <p>Step-by-step explanations and improvements.</p>
-                </article>
-              </div>
-            </section>
 
-            <section className="landingSection featureDeepDive">
-              <p className="sectionEyebrow">What makes it different</p>
-              <h2>Built for actual computer science learning, not generic chatbot replies</h2>
-              <div className="deepDiveGrid">
-                <article>
-                  <h3>Topic-aware responses</h3>
-                  <p>Switch between algorithms, data representation, security, and more in one workspace.</p>
-                </article>
-                <article>
-                  <h3>Student IDE included</h3>
-                  <p>Run Python and JavaScript directly, inspect output, and iterate faster.</p>
-                </article>
-                <article>
-                  <h3>Teacher tools</h3>
-                  <p>Generate quizzes and assign tasks to students with shared progress visibility.</p>
-                </article>
-                <article>
-                  <h3>Progress visibility</h3>
-                  <p>Track usage, completion, and activity patterns to spot where support is needed.</p>
+                <article className="pricingCard pricingCardPro">
+                  <h3>Premium</h3>
+                  <p className="pricingPrice">£9.99 / month</p>
+                  <ul>
+                    <li>Advanced AI help</li>
+                    <li>Progress insights</li>
+                    <li>Priority support</li>
+                  </ul>
+                  <button type="button" className="sendBtn" onClick={() => handleGuestPlanChoice("premium")}>
+                    Choose Premium
+                  </button>
                 </article>
               </div>
-            </section>
-
-            <section className="landingSection testimonialsSection">
-              <p className="sectionEyebrow">Results from learners</p>
-              <h2>What students say after a week of usage</h2>
-              <div className="testimonialGrid">
-                <article>
-                  <p>"I finally understand loops and conditions. It explains better than random videos."</p>
-                  <strong>Year 10 Student</strong>
-                </article>
-                <article>
-                  <p>"The hint mode is perfect. I still solve the task myself, but with better direction."</p>
-                  <strong>GCSE Learner</strong>
-                </article>
-                <article>
-                  <p>"Our class uses it before homework deadlines. Fewer blockers, better submissions."</p>
-                  <strong>Computer Science Teacher</strong>
-                </article>
-              </div>
-            </section>
-
-            <section className="landingSection faqSection">
-              <p className="sectionEyebrow">FAQ</p>
-              <h2>Common questions</h2>
-              <div className="faqList">
-                <details>
-                  <summary>Is this suitable for beginners?</summary>
-                  <p>Yes. Start with basic prompts and use Explain mode for step-by-step support.</p>
-                </details>
-                <details>
-                  <summary>Do I need to pay immediately?</summary>
-                  <p>No. You can start on the free plan and upgrade only when you need more capacity.</p>
-                </details>
-                <details>
-                  <summary>Can teachers use it with students?</summary>
-                  <p>Yes. Teacher accounts include quiz generation and student task assignment workflows.</p>
-                </details>
-              </div>
-            </section>
-
-            <section className="landingSection finalCtaSection">
-              <h2>Start your first guided coding session today</h2>
-              <p>No credit card required to begin.</p>
-              <div className="finalCtaActions">
-                <button type="button" className="sendBtn heroStartBtn" onClick={handleGetStarted}>
-                  Start Free Lesson
-                </button>
-                <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
-                  Compare Plans
+              <div className="paywallActions">
+                <button type="button" className="modeBtn" onClick={() => openAuthPage("login")}>
+                  Already have an account? Login
                 </button>
               </div>
-            </section>
-          </section>
-        </main>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className={`wrap ${viewMode === "dashboard" || viewMode === "teacher" ? "wrapScrollable" : ""}`}>
+    <div
+      className={`wrap ${viewMode === "dashboard" || viewMode === "teacher" ? "wrapScrollable" : ""} ${
+        viewMode === "tutor" ? "tutorWorkspace" : ""
+      }`}
+    >
       <header className="top">
         <div className="brand">
           <h1>CodeQuest AI Tutor</h1>
