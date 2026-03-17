@@ -11,6 +11,8 @@ const AUTH_SUCCESS_TRACKED_KEY = "auth_tracked";
 const PENDING_PLAN_KEY = "codequest_pending_plan";
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const JS_RUN_TIMEOUT_MS = 4000;
+const PYTHON_LOAD_TIMEOUT_MS = 12000;
+const PYTHON_RUN_TIMEOUT_MS = 8000;
 const GUEST_TRIAL_MS = 10 * 60 * 1000;
 const LANDING_SPLASH_MS = 5 * 1000;
 const DEMO_MAX_TRIES = 5;
@@ -120,6 +122,22 @@ function formatDuration(ms) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function withTimeout(promise, ms, message) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
 }
 
 export default function App() {
@@ -407,7 +425,8 @@ export default function App() {
 
     pyodideLoadPromiseRef.current = (async () => {
       if (!window.loadPyodide) {
-        await new Promise((resolve, reject) => {
+        await withTimeout(
+          new Promise((resolve, reject) => {
           const existingScript = document.querySelector('script[data-pyodide="true"]');
           if (existingScript) {
             existingScript.addEventListener("load", () => resolve(), { once: true });
@@ -426,10 +445,17 @@ export default function App() {
             once: true,
           });
           document.head.appendChild(script);
-        });
+          }),
+          PYTHON_LOAD_TIMEOUT_MS,
+          `Python runtime load timed out after ${PYTHON_LOAD_TIMEOUT_MS / 1000}s.`
+        );
       }
 
-      const pyodide = await window.loadPyodide({ indexURL: PYODIDE_INDEX_URL });
+      const pyodide = await withTimeout(
+        window.loadPyodide({ indexURL: PYODIDE_INDEX_URL }),
+        PYTHON_LOAD_TIMEOUT_MS,
+        `Python runtime startup timed out after ${PYTHON_LOAD_TIMEOUT_MS / 1000}s.`
+      );
       pyodideRef.current = pyodide;
       return pyodide;
     })().catch((err) => {
@@ -1108,7 +1134,8 @@ export default function App() {
 
       const pyodide = await ensurePyodide();
       const escapedCode = JSON.stringify(codeInput);
-      const execution = await pyodide.runPythonAsync(`
+      const execution = await withTimeout(
+        pyodide.runPythonAsync(`
 import io
 import sys
 import traceback
@@ -1132,7 +1159,10 @@ finally:
 output_text = stdout_capture.getvalue()
 error_text = stderr_capture.getvalue() + runtime_error
 (output_text, error_text)
-      `);
+      `),
+        PYTHON_RUN_TIMEOUT_MS,
+        `Python execution timed out after ${PYTHON_RUN_TIMEOUT_MS / 1000}s.`
+      );
 
       const result = execution?.toJs ? execution.toJs() : execution;
       execution?.destroy?.();
