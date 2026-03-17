@@ -1768,18 +1768,6 @@ error_text = stderr_capture.getvalue() + runtime_error
       );
     }
 
-    if (currentPath === "/" && showLandingSplash) {
-      return (
-        <div className="authShell landingSplashScreen">
-          <section className="landingSplashCard">
-            <img className="landingSplashLogo" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
-            <h1>AI Tutor</h1>
-            <p>Welcome to a place to learn coding, programming, and everything about computer science.</p>
-          </section>
-        </div>
-      );
-    }
-
     if (isMobileViewport && currentPath === "/tools") {
       return (
         <div className="wrap mobileIdePage">
@@ -1850,6 +1838,22 @@ error_text = stderr_capture.getvalue() + runtime_error
         </header>
 
         {checkoutNotice && <p className="paywallNotice inlineNotice">{checkoutNotice}</p>}
+
+        {showLandingSplash && (
+          <section className="landingSplashCard">
+            <button
+              type="button"
+              className="modeBtn landingSplashClose"
+              onClick={() => setShowLandingSplash(false)}
+              aria-label="Close welcome message"
+            >
+              Close
+            </button>
+            <img className="landingSplashLogo" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
+            <h2>AI Tutor</h2>
+            <p>Welcome to a place to learn coding, programming, and everything about computer science.</p>
+          </section>
+        )}
 
         <section className="guestTrialBanner">
           <div>
