@@ -8,7 +8,6 @@ const LAST_EMAIL_KEY = "codequest_last_email";
 const CHECKOUT_NOTICE_KEY = "codequest_checkout_notice";
 const FIRST_CHAT_MESSAGE_TRACKED_KEY = "codequest_first_chat_message_tracked";
 const AUTH_SUCCESS_TRACKED_KEY = "auth_tracked";
-const GUEST_TRIAL_STARTED_KEY = "codequest_guest_trial_started_at";
 const PENDING_PLAN_KEY = "codequest_pending_plan";
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const JS_RUN_TIMEOUT_MS = 4000;
@@ -141,16 +140,7 @@ export default function App() {
   const [demoReply, setDemoReply] = useState("");
   const [demoError, setDemoError] = useState("");
   const [demoUsageCount, setDemoUsageCount] = useState(0);
-  const [guestTrialStartedAt, setGuestTrialStartedAt] = useState(() => {
-    try {
-      const rawValue = sessionStorage.getItem(GUEST_TRIAL_STARTED_KEY);
-      if (!rawValue) return null;
-      const parsed = Number(rawValue);
-      return Number.isFinite(parsed) ? parsed : null;
-    } catch {
-      return null;
-    }
-  });
+  const [guestTrialStartedAt, setGuestTrialStartedAt] = useState(null);
   const [guestTrialTick, setGuestTrialTick] = useState(() => Date.now());
   const [showLandingSplash, setShowLandingSplash] = useState(() => !user && window.location.pathname === "/");
 
@@ -826,15 +816,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (user || currentPath !== "/" || guestTrialStartedAt) return;
+    if (user) {
+      setGuestTrialStartedAt(null);
+      return;
+    }
+    if (currentPath !== "/" || guestTrialStartedAt) return;
     const startedAt = Date.now();
     setGuestTrialStartedAt(startedAt);
     setGuestTrialTick(startedAt);
-    try {
-      sessionStorage.setItem(GUEST_TRIAL_STARTED_KEY, String(startedAt));
-    } catch {
-      // ignore storage errors
-    }
   }, [user, currentPath, guestTrialStartedAt]);
 
   useEffect(() => {
