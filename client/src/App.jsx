@@ -1788,7 +1788,7 @@ error_text = stderr_capture.getvalue() + runtime_error
           <section className="landingSplashCard">
             <img className="landingSplashLogo" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
             <h2>AI Tutor</h2>
-            <p>Welcome to a place to learn coding, programming, and everything about computer science.</p>
+            <p>Learn coding with your personal AI Tutor.</p>
           </section>
         </div>
       );
@@ -1800,7 +1800,7 @@ error_text = stderr_capture.getvalue() + runtime_error
           {topHeaderLogo}
           <div className="brand">
             <h1>AI Tutor</h1>
-            <p className="subtitle">Learn Computer Science with an AI tutor that explains step-by-step.</p>
+            <p className="subtitle">Learn coding with your personal AI Tutor.</p>
           </div>
 
           <div className="topMenuWrap" ref={topMenuRef}>
@@ -2039,7 +2039,7 @@ error_text = stderr_capture.getvalue() + runtime_error
         {topHeaderLogo}
         <div className="brand">
           <h1>AI Tutor</h1>
-          <p className="subtitle">Learn Computer Science with an AI tutor that explains step-by-step.</p>
+          <p className="subtitle">Learn coding with your personal AI Tutor.</p>
         </div>
 
         <div className="topMenuWrap" ref={topMenuRef}>
