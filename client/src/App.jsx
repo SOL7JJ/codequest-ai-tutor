@@ -1789,6 +1789,13 @@ error_text = stderr_capture.getvalue() + runtime_error
             <img className="landingSplashLogo" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
             <h2>AI Tutor</h2>
             <p>Learn coding with your personal AI Tutor.</p>
+            <button
+              type="button"
+              className="sendBtn landingSplashBtn"
+              onClick={() => setShowLandingSplash(false)}
+            >
+              Get started
+            </button>
           </section>
         </div>
       );

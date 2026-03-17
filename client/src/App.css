@@ -1039,6 +1039,13 @@ button:disabled {
   font-weight: 600;
 }
 
+.landingSplashBtn {
+  min-width: 190px;
+  min-height: 52px;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
 .landing {
   width: min(1240px, 100%);
   margin: 0 auto;
@@ -2490,6 +2497,12 @@ button:disabled {
 
   .landingSplashCard h2 {
     font-size: 1.9rem;
+  }
+
+  .landingSplashBtn {
+    min-width: 168px;
+    min-height: 48px;
+    font-size: 0.96rem;
   }
 
   .landingFeatureCards {
