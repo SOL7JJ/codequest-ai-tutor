@@ -835,16 +835,12 @@ export default function App() {
   }, [user, guestTrialStartedAt]);
 
   useEffect(() => {
-    if (user || currentPath !== "/") {
-      setShowLandingSplash(false);
-      return undefined;
-    }
-    setShowLandingSplash(true);
+    if (user || currentPath !== "/" || !showLandingSplash) return undefined;
     const timeoutId = window.setTimeout(() => {
       setShowLandingSplash(false);
     }, LANDING_SPLASH_MS);
     return () => window.clearTimeout(timeoutId);
-  }, [user, currentPath]);
+  }, [user, currentPath, showLandingSplash]);
 
   async function handleStartSubscription(targetPlan = "pro") {
     setBillingActionLoading(true);
