@@ -13,6 +13,7 @@ const PENDING_PLAN_KEY = "codequest_pending_plan";
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const JS_RUN_TIMEOUT_MS = 4000;
 const GUEST_TRIAL_MS = 10 * 60 * 1000;
+const LANDING_SPLASH_MS = 5 * 1000;
 const DEMO_MAX_TRIES = 5;
 const DEMO_QUESTIONS = [
   "How do Python loops work?",
@@ -151,6 +152,7 @@ export default function App() {
     }
   });
   const [guestTrialTick, setGuestTrialTick] = useState(() => Date.now());
+  const [showLandingSplash, setShowLandingSplash] = useState(() => !user && window.location.pathname === "/");
 
   const [billingStatus, setBillingStatus] = useState("inactive");
   const [billingPlan, setBillingPlan] = useState("free");
@@ -842,6 +844,18 @@ export default function App() {
     }, 1000);
     return () => window.clearInterval(intervalId);
   }, [user, guestTrialStartedAt]);
+
+  useEffect(() => {
+    if (user || currentPath !== "/") {
+      setShowLandingSplash(false);
+      return undefined;
+    }
+    setShowLandingSplash(true);
+    const timeoutId = window.setTimeout(() => {
+      setShowLandingSplash(false);
+    }, LANDING_SPLASH_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [user, currentPath]);
 
   async function handleStartSubscription(targetPlan = "pro") {
     setBillingActionLoading(true);
@@ -1750,6 +1764,18 @@ error_text = stderr_capture.getvalue() + runtime_error
               {authError && <p className="authError">{authError}</p>}
             </section>
           </main>
+        </div>
+      );
+    }
+
+    if (currentPath === "/" && showLandingSplash) {
+      return (
+        <div className="authShell landingSplashScreen">
+          <section className="landingSplashCard">
+            <img className="landingSplashLogo" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
+            <h1>AI Tutor</h1>
+            <p>Welcome to a place to learn coding, programming, and everything about computer science.</p>
+          </section>
         </div>
       );
     }

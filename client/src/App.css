@@ -991,6 +991,54 @@ button:disabled {
     linear-gradient(180deg, #eef3fa 0%, #f7fafe 100%);
 }
 
+.landingSplashScreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.landingSplashCard {
+  width: min(640px, 100%);
+  padding: 28px 24px;
+  border: 1px solid #d4e0ee;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 24px 54px rgba(19, 53, 96, 0.16);
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 16px;
+  animation: reveal 320ms ease-out;
+}
+
+.landingSplashLogo {
+  width: clamp(120px, 18vw, 156px);
+  height: clamp(120px, 18vw, 156px);
+  border-radius: 28px;
+  object-fit: cover;
+  border: 1px solid #c8d9ed;
+  background: #fff;
+  box-shadow: 0 18px 34px rgba(28, 81, 149, 0.14);
+}
+
+.landingSplashCard h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 5vw, 3.3rem);
+  letter-spacing: -0.03em;
+  color: #132f57;
+}
+
+.landingSplashCard p {
+  margin: 0;
+  max-width: 22ch;
+  color: #47617f;
+  font-size: clamp(1.05rem, 2.4vw, 1.28rem);
+  line-height: 1.45;
+  font-weight: 600;
+}
+
 .landing {
   width: min(1240px, 100%);
   margin: 0 auto;
@@ -2421,6 +2469,23 @@ button:disabled {
 
   .landingVisual {
     display: none;
+  }
+
+  .landingSplashCard {
+    padding: 24px 18px;
+    border-radius: 24px;
+    gap: 14px;
+  }
+
+  .landingSplashLogo {
+    width: 112px;
+    height: 112px;
+    border-radius: 24px;
+  }
+
+  .landingSplashCard p {
+    max-width: 18ch;
+    font-size: 1rem;
   }
 
   .landingFeatureCards {
