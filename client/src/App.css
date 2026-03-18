@@ -2162,6 +2162,7 @@ button:disabled {
   flex: 1;
   min-height: 0;
   align-items: stretch;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .tutorWorkspace .chatColumn {

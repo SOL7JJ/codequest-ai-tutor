@@ -2031,9 +2031,9 @@ error_text = stderr_capture.getvalue() + runtime_error
     );
   }
 
-  if (viewMode === "tutor" && isMobileViewport && currentPath === "/tools") {
+  if (viewMode === "tutor" && currentPath === "/tools") {
     return (
-      <div className="wrap mobileIdePage">
+      <div className="wrap mobileIdePage ideStandalonePage">
         <header className="top mobileIdeHeader">
           {topHeaderLogo}
           <div className="brand">
@@ -2140,54 +2140,67 @@ error_text = stderr_capture.getvalue() + runtime_error
         <p className="inlineLoadingBanner">Syncing your workspace data...</p>
       )}
 
-      <div className="workspaceTabs">
-        <button type="button" className={`modeBtn ${viewMode === "tutor" ? "active" : ""}`} onClick={() => setViewMode("tutor")}>Tutor Workspace</button>
-        <button type="button" className={`modeBtn ${viewMode === "dashboard" ? "active" : ""}`} onClick={() => { setViewMode("dashboard"); setStudentDashTab("overview"); fetchProgressOverview(); }}>Student Dashboard</button>
-        {user.role === "teacher" && (
-          <button type="button" className={`modeBtn ${viewMode === "teacher" ? "active" : ""}`} onClick={() => { setViewMode("teacher"); fetchTeacherResults(); }}>Teacher Dashboard</button>
-        )}
-      </div>
-
-      {viewMode === "tutor" && (
-        <section className="workspaceFilters">
-          {isMobileViewport && (
+      {viewMode === "tutor" ? (
+        <section className="guestControlRow tutorControlRow">
+          <div className="workspaceTabs guestControlTabs">
+            <button type="button" className="modeBtn active">Tutor Workspace</button>
             <button
               type="button"
-              className={`modeBtn workspaceFiltersToggle ${mobileFiltersExpanded ? "active" : ""}`}
-              onClick={() => setMobileFiltersExpanded((prev) => !prev)}
-              aria-expanded={mobileFiltersExpanded}
+              className="modeBtn"
+              onClick={() => {
+                setViewMode("dashboard");
+                setStudentDashTab("overview");
+                fetchProgressOverview();
+              }}
             >
-              {level} • {topic} • {mode}
+              Student Dashboard
             </button>
-          )}
-          <div className={`workspaceFiltersBody ${isMobileViewport && !mobileFiltersExpanded ? "collapsed" : ""}`}>
-            <div className="filterField">
-              <label htmlFor="workspace-level">Level</label>
-              <select id="workspace-level" value={level} onChange={(e) => setLevel(e.target.value)}>
-                <option>KS3</option>
-                <option>GCSE</option>
-                <option>A-Level</option>
-              </select>
-            </div>
-            <div className="filterField filterFieldWide">
-              <label htmlFor="workspace-topic">Subject</label>
-              <select id="workspace-topic" value={topic} onChange={(e) => setTopic(e.target.value)}>
-                {levelTopics.map((topicOption) => (
-                  <option key={topicOption}>{topicOption}</option>
-                ))}
-              </select>
-            </div>
-            <div className="filterField">
-              <label htmlFor="workspace-mode">Mode</label>
-              <select id="workspace-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
-                <option>Explain</option>
-                <option>Hint</option>
-                <option disabled={!isPaidPlan}>Quiz{isPaidPlan ? "" : " (Pro)"}</option>
-                <option disabled={!isPaidPlan}>Mark{isPaidPlan ? "" : " (Pro)"}</option>
-              </select>
-            </div>
+            <button type="button" className="modeBtn" onClick={() => goToPath("/tools")}>
+              Student IDE
+            </button>
+            {user.role === "teacher" && (
+              <button
+                type="button"
+                className="modeBtn"
+                onClick={() => {
+                  setViewMode("teacher");
+                  fetchTeacherResults();
+                }}
+              >
+                Teacher Dashboard
+              </button>
+            )}
           </div>
         </section>
+      ) : (
+        <div className="workspaceTabs">
+          <button
+            type="button"
+            className={`modeBtn ${viewMode === "dashboard" ? "active" : ""}`}
+            onClick={() => {
+              setViewMode("dashboard");
+              setStudentDashTab("overview");
+              fetchProgressOverview();
+            }}
+          >
+            Student Dashboard
+          </button>
+          {user.role === "teacher" && (
+            <button
+              type="button"
+              className={`modeBtn ${viewMode === "teacher" ? "active" : ""}`}
+              onClick={() => {
+                setViewMode("teacher");
+                fetchTeacherResults();
+              }}
+            >
+              Teacher Dashboard
+            </button>
+          )}
+          <button type="button" className="modeBtn" onClick={() => setViewMode("tutor")}>
+            Tutor Workspace
+          </button>
+        </div>
       )}
 
       {viewMode === "dashboard" && (
@@ -2405,20 +2418,6 @@ error_text = stderr_capture.getvalue() + runtime_error
 
       {viewMode === "tutor" && (
         <>
-          {currentPath !== "/tools" && (
-            <div className="starters">
-              <span className="startersLabel">Try:</span>
-              {starterPrompts.map((p, idx) => (
-                <button key={`${p.label}-${idx}`} type="button" onClick={() => sendMessage(null, p.text)} disabled={loading}>{p.label}</button>
-              ))}
-              {isMobileViewport && (
-                <button type="button" className="modeBtn starterLogoutBtn" onClick={handleSignOut}>
-                  Log out
-                </button>
-              )}
-            </div>
-          )}
-
           <div className="layout">
             <div className={`chatColumn ${isMobileViewport && currentPath === "/tools" ? "mobileHidden" : ""}`}>
               <main className="chat" ref={chatRef}>
@@ -2479,12 +2478,6 @@ error_text = stderr_capture.getvalue() + runtime_error
                 )}
               </div>
             </div>
-
-            {!isMobileViewport && (
-              <aside className="side" ref={sideRef}>
-                {idePanel}
-              </aside>
-            )}
           </div>
         </>
       )}
