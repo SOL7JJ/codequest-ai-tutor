@@ -11,8 +11,6 @@ const AUTH_SUCCESS_TRACKED_KEY = "auth_tracked";
 const PENDING_PLAN_KEY = "codequest_pending_plan";
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const JS_RUN_TIMEOUT_MS = 4000;
-const PYTHON_LOAD_TIMEOUT_MS = 12000;
-const PYTHON_RUN_TIMEOUT_MS = 8000;
 const GUEST_TRIAL_MS = 10 * 60 * 1000;
 const LANDING_SPLASH_MS = 5 * 1000;
 const DEMO_MAX_TRIES = 5;
@@ -124,22 +122,6 @@ function formatDuration(ms) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function withTimeout(promise, ms, message) {
-  return new Promise((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => reject(new Error(message)), ms);
-    promise.then(
-      (value) => {
-        window.clearTimeout(timeoutId);
-        resolve(value);
-      },
-      (error) => {
-        window.clearTimeout(timeoutId);
-        reject(error);
-      }
-    );
-  });
-}
-
 export default function App() {
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname || "/");
   const [user, setUser] = useState(null);
@@ -249,7 +231,7 @@ export default function App() {
     () => [
       { label: "Explain loops", text: "Explain loops in Python with an example." },
       { label: "Arrays", text: "What is an array? Explain for KS3 with an example." },
-      { label: "Python errors", text: "I got TypeError in Python. Help me debug." },
+      { label: "Variables", text: "Explain variables in coding with a simple example." },
     ],
     []
   );
@@ -425,8 +407,7 @@ export default function App() {
 
     pyodideLoadPromiseRef.current = (async () => {
       if (!window.loadPyodide) {
-        await withTimeout(
-          new Promise((resolve, reject) => {
+        await new Promise((resolve, reject) => {
           const existingScript = document.querySelector('script[data-pyodide="true"]');
           if (existingScript) {
             existingScript.addEventListener("load", () => resolve(), { once: true });
@@ -445,17 +426,10 @@ export default function App() {
             once: true,
           });
           document.head.appendChild(script);
-          }),
-          PYTHON_LOAD_TIMEOUT_MS,
-          `Python runtime load timed out after ${PYTHON_LOAD_TIMEOUT_MS / 1000}s.`
-        );
+        });
       }
 
-      const pyodide = await withTimeout(
-        window.loadPyodide({ indexURL: PYODIDE_INDEX_URL }),
-        PYTHON_LOAD_TIMEOUT_MS,
-        `Python runtime startup timed out after ${PYTHON_LOAD_TIMEOUT_MS / 1000}s.`
-      );
+      const pyodide = await window.loadPyodide({ indexURL: PYODIDE_INDEX_URL });
       pyodideRef.current = pyodide;
       return pyodide;
     })().catch((err) => {
@@ -1122,7 +1096,7 @@ export default function App() {
 
     setIdeRunLoading(true);
     setIdeRunError("");
-    setIdeOutput("Running...");
+    setIdeOutput(codeLanguage === "python" ? "Preparing Python runtime..." : "Running...");
 
     try {
       if (codeLanguage === "javascript") {
@@ -1133,9 +1107,9 @@ export default function App() {
       }
 
       const pyodide = await ensurePyodide();
+      setIdeOutput("Running Python...");
       const escapedCode = JSON.stringify(codeInput);
-      const execution = await withTimeout(
-        pyodide.runPythonAsync(`
+      const execution = await pyodide.runPythonAsync(`
 import io
 import sys
 import traceback
@@ -1159,10 +1133,7 @@ finally:
 output_text = stdout_capture.getvalue()
 error_text = stderr_capture.getvalue() + runtime_error
 (output_text, error_text)
-      `),
-        PYTHON_RUN_TIMEOUT_MS,
-        `Python execution timed out after ${PYTHON_RUN_TIMEOUT_MS / 1000}s.`
-      );
+      `);
 
       const result = execution?.toJs ? execution.toJs() : execution;
       execution?.destroy?.();
@@ -1489,12 +1460,13 @@ error_text = stderr_capture.getvalue() + runtime_error
   const topHeaderLogo = (
     <img className="topBrandLogoImage" src="/icons/apple-touch-icon.png" alt="AI Tutor logo" />
   );
+  const showStandaloneIdeBackButton = currentPath === "/tools";
   const idePanel = useMemo(
     () => (
       <div className="tips">
         <h4>Student IDE</h4>
         <p>Run Python or JavaScript code in-browser and inspect the output.</p>
-        <div className="ideLanguageTabs">
+        <div className={`ideLanguageTabs ${showStandaloneIdeBackButton ? "hasBackButton" : ""}`}>
           <button
             type="button"
             className={`modeBtn ${codeLanguage === "python" ? "active" : ""}`}
@@ -1509,6 +1481,18 @@ error_text = stderr_capture.getvalue() + runtime_error
           >
             JavaScript
           </button>
+          {showStandaloneIdeBackButton && (
+            <button
+              type="button"
+              className="modeBtn active ideBackBtn"
+              onClick={() => {
+                goToPath("/");
+                chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              Chat
+            </button>
+          )}
         </div>
         <div className="ideShell">
           <div className="ideHead">
@@ -1583,7 +1567,20 @@ error_text = stderr_capture.getvalue() + runtime_error
         )}
       </div>
     ),
-    [codeEvalError, codeEvalLoading, codeEvalResult, codeInput, codeLanguage, guestTrialExpired, ideRunError, ideRunLoading, ideOutput, user]
+    [
+      codeEvalError,
+      codeEvalLoading,
+      codeEvalResult,
+      codeInput,
+      codeLanguage,
+      currentPath,
+      guestTrialExpired,
+      ideRunError,
+      ideRunLoading,
+      ideOutput,
+      showStandaloneIdeBackButton,
+      user,
+    ]
   );
 
   if (authChecking) {
@@ -1783,9 +1780,9 @@ error_text = stderr_capture.getvalue() + runtime_error
       );
     }
 
-    if (isMobileViewport && currentPath === "/tools") {
+    if (currentPath === "/tools") {
       return (
-        <div className="wrap mobileIdePage">
+        <div className="wrap mobileIdePage ideStandalonePage">
           <header className="top mobileIdeHeader">
             {topHeaderLogo}
             <div className="brand">
@@ -1793,16 +1790,6 @@ error_text = stderr_capture.getvalue() + runtime_error
               <p className="subtitle">IDE tools for your guest workspace.</p>
             </div>
           </header>
-          <button
-            type="button"
-            className="modeBtn mobileBackToChatBtn"
-            onClick={() => {
-              goToPath("/");
-              chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-            }}
-          >
-            Back to chat
-          </button>
           <section className="mobileIdeCard">{idePanel}</section>
         </div>
       );
@@ -1873,39 +1860,51 @@ error_text = stderr_capture.getvalue() + runtime_error
 
         {checkoutNotice && <p className="paywallNotice inlineNotice">{checkoutNotice}</p>}
 
-        <section className="guestTrialBanner">
-          <div>
-            <h3>Guest workspace preview</h3>
-            <p>Use the tutor and IDE for 10 minutes. After that, create an account to continue.</p>
-          </div>
-          <div className="guestTrialMeta">
-            <strong>{guestTrialLabel}</strong>
-            <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
-              Continue Free
-            </button>
-          </div>
-        </section>
+        {isMobileViewport ? (
+          <>
+            <section className="guestTrialBanner">
+              <div>
+                <h3>Guest workspace preview</h3>
+                <p>Use the tutor and IDE for 10 minutes. After that, create an account to continue.</p>
+              </div>
+              <div className="guestTrialMeta">
+                <strong>{guestTrialLabel}</strong>
+                <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
+                  Continue Free
+                </button>
+              </div>
+            </section>
 
-        <div className="workspaceTabs">
-          <button type="button" className="modeBtn active">Tutor Workspace</button>
-          <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
-            Student Dashboard
-          </button>
-        </div>
+            <div className="workspaceTabs">
+              <button type="button" className="modeBtn active">Tutor Workspace</button>
+              <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
+                Student Dashboard
+              </button>
+              <button type="button" className="modeBtn" onClick={() => goToPath("/tools")}>
+                Student IDE
+              </button>
+            </div>
+          </>
+        ) : (
+          <section className="guestControlRow">
+            <div className="workspaceTabs guestControlTabs">
+              <button type="button" className="modeBtn active">Tutor Workspace</button>
+              <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
+                Student Dashboard
+              </button>
+              <button type="button" className="modeBtn" onClick={() => goToPath("/tools")}>
+                Student IDE
+              </button>
+            </div>
 
-        <div className="starters">
-          <span className="startersLabel">Try:</span>
-          {starterPrompts.map((p, idx) => (
-            <button
-              key={`${p.label}-${idx}`}
-              type="button"
-              onClick={() => sendMessage(null, p.text)}
-              disabled={loading || guestTrialExpired}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+            <div className="guestTrialMeta guestControlMeta">
+              <strong>{guestTrialLabel}</strong>
+              <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
+                Continue Free
+              </button>
+            </div>
+          </section>
+        )}
 
         <div className="layout">
           <div className={`chatColumn ${isMobileViewport && currentPath === "/tools" ? "mobileHidden" : ""}`}>
@@ -1974,11 +1973,6 @@ error_text = stderr_capture.getvalue() + runtime_error
             </div>
           </div>
 
-          {!isMobileViewport && (
-            <aside className="side" ref={sideRef}>
-              {idePanel}
-            </aside>
-          )}
         </div>
 
         {guestTrialExpired && (
@@ -2047,16 +2041,6 @@ error_text = stderr_capture.getvalue() + runtime_error
             <p className="subtitle">IDE tools for your tutor workspace.</p>
           </div>
         </header>
-        <button
-          type="button"
-          className="modeBtn mobileBackToChatBtn"
-          onClick={() => {
-            goToPath("/");
-            chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-        >
-          Back to chat
-        </button>
         <section className="mobileIdeCard">{idePanel}</section>
       </div>
     );

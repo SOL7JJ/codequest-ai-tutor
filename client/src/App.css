@@ -542,8 +542,8 @@ button:disabled {
 
 .layout {
   display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 16px;
+  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 0.48fr);
+  gap: 14px;
   align-items: start;
 }
 
@@ -851,7 +851,7 @@ button:disabled {
 
 .ideEditor {
   width: 100%;
-  min-height: 220px;
+  min-height: 250px;
   border: 0;
   border-bottom: 1px solid #d5e2f2;
   border-radius: 0;
@@ -2036,6 +2036,49 @@ button:disabled {
   font-size: 1.15rem;
 }
 
+.guestControlRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 6px;
+  min-width: 0;
+}
+
+.guestControlTabs {
+  flex: 1 1 520px;
+  min-width: 340px;
+  margin: 0;
+}
+
+.guestControlTabs .modeBtn {
+  min-height: 48px;
+}
+
+.guestControlStarters {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  flex-wrap: nowrap;
+  overflow: visible;
+  gap: 7px;
+}
+
+.guestControlStarters .startersLabel {
+  flex: 0 0 auto;
+}
+
+.guestControlStarters button {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  font-size: 0.92rem;
+}
+
+.guestControlMeta {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 10px;
+}
+
 .guestIdeHint {
   margin: 4px 0 0;
   color: #4c6787;
@@ -2072,47 +2115,47 @@ button:disabled {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding-top: 18px;
-  padding-bottom: 14px;
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 .tutorWorkspace .top {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .tutorWorkspace .subtitle {
-  margin-top: 4px;
+  margin-top: 1px;
 }
 
 .tutorWorkspace .inlineNotice {
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .tutorWorkspace .freePlanBanner {
-  margin: 8px 0 10px;
-  padding: 10px 12px;
+  margin: 4px 0 6px;
+  padding: 8px 10px;
 }
 
 .tutorWorkspace .freePlanBanner h3 {
-  font-size: 0.94rem;
+  font-size: 0.88rem;
 }
 
 .tutorWorkspace .freePlanBanner p {
-  margin-top: 4px;
-  font-size: 0.92rem;
+  margin-top: 2px;
+  font-size: 0.84rem;
 }
 
 .tutorWorkspace .workspaceTabs {
-  margin: 8px 0 10px;
+  margin: 4px 0 6px;
 }
 
 .tutorWorkspace .workspaceFilters {
-  margin-bottom: 10px;
-  padding: 10px;
+  margin-bottom: 6px;
+  padding: 8px 10px;
 }
 
 .tutorWorkspace .starters {
-  margin: 8px 0 10px;
+  margin: 4px 0 6px;
 }
 
 .tutorWorkspace .layout {
@@ -2157,29 +2200,60 @@ button:disabled {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding-top: 18px;
-  padding-bottom: 14px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.guestWorkspace .top,
+.tutorWorkspace .top {
+  justify-content: center;
+  align-items: center;
+  min-height: 40px;
+  padding-left: 62px;
+  padding-right: 58px;
+}
+
+.guestWorkspace .brand,
+.tutorWorkspace .brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.guestWorkspace .brand h1,
+.tutorWorkspace .brand h1 {
+  flex: 0 0 auto;
+  font-size: clamp(1.04rem, 1.5vw, 1.26rem);
+  line-height: 1.02;
+}
+
+.guestWorkspace .subtitle,
+.tutorWorkspace .subtitle {
+  flex: 0 1 auto;
+  margin: 0;
+  max-width: 42ch;
+  font-size: 0.74rem;
+  line-height: 1.15;
 }
 
 .guestWorkspace .top {
-  margin-bottom: 8px;
-}
-
-.guestWorkspace .subtitle {
-  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .guestWorkspace .guestTrialBanner {
-  margin: 6px 0 10px;
-  padding: 12px 14px;
+  margin: 4px 0 6px;
+  padding: 10px 12px;
 }
 
 .guestWorkspace .workspaceTabs {
-  margin: 8px 0 10px;
+  margin: 4px 0 6px;
 }
 
 .guestWorkspace .starters {
-  margin: 8px 0 10px;
+  margin: 4px 0 6px;
 }
 
 .guestWorkspace .layout {
@@ -2196,6 +2270,10 @@ button:disabled {
   flex: 1;
   height: auto;
   min-height: 0;
+}
+
+.guestWorkspace .layout {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .guestWorkspace .chatDock {
@@ -2251,6 +2329,151 @@ button:disabled {
   flex-direction: column;
   min-height: 100%;
   overflow: visible;
+}
+
+.ideStandalonePage .side {
+  width: 100%;
+  max-width: 100%;
+}
+
+.ideStandalonePage .mobileIdeCard {
+  width: 100%;
+  max-width: 100%;
+}
+
+.ideStandalonePage .mobileIdeCard {
+  display: flex;
+  min-height: 0;
+}
+
+.ideStandalonePage .side {
+  display: flex;
+  flex-direction: column;
+}
+
+.ideStandalonePage .tips {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.ideStandalonePage .ideShell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.ideStandalonePage .ideEditor {
+  min-height: 340px;
+  flex: 1 1 auto;
+  resize: none;
+}
+
+.ideStandalonePage .miniIdeOutput,
+.ideStandalonePage .miniIdeError {
+  min-height: 150px;
+  max-height: none;
+}
+
+.ideStandalonePage {
+  padding-top: 14px;
+}
+
+.ideStandalonePage .mobileIdeHeader {
+  margin-bottom: 2px;
+}
+
+.ideStandalonePage .top {
+  min-height: 34px;
+  margin-bottom: 4px;
+}
+
+.ideStandalonePage .brand h1 {
+  font-size: clamp(1.6rem, 2.4vw, 2.5rem);
+  line-height: 1;
+}
+
+.ideStandalonePage .subtitle {
+  margin-top: 4px;
+  font-size: 0.92rem;
+}
+
+.ideStandalonePage .tips h4 {
+  margin-bottom: 8px;
+}
+
+.ideStandalonePage .tips p {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.ideStandalonePage .ideLanguageTabs.hasBackButton {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: stretch;
+}
+
+.ideStandalonePage .ideBackBtn {
+  min-width: 110px;
+  padding: 8px 14px;
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+@media (min-width: 901px) {
+  .ideStandalonePage {
+    padding-top: 8px;
+  }
+
+  .ideStandalonePage .top {
+    min-height: 26px;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .ideStandalonePage .topBrandLogoImage {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .ideStandalonePage .brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: nowrap;
+  }
+
+  .ideStandalonePage .brand h1 {
+    font-size: clamp(1.2rem, 2vw, 1.8rem);
+    line-height: 1;
+  }
+
+  .ideStandalonePage .subtitle {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.1;
+    max-width: none;
+  }
+
+  .ideStandalonePage .mobileIdeHeader {
+    margin-bottom: 0;
+  }
+
+  .ideStandalonePage .mobileIdeCard {
+    margin-top: 2px;
+  }
+
+  .ideStandalonePage .tips h4 {
+    margin-bottom: 6px;
+  }
+
+  .ideStandalonePage .tips p {
+    margin-bottom: 8px;
+  }
 }
 
 .freePlanBanner {
