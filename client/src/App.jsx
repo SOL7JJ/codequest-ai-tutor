@@ -1789,6 +1789,66 @@ error_text = stderr_capture.getvalue() + runtime_error
               <h1>AI Tutor</h1>
               <p className="subtitle">IDE tools for your guest workspace.</p>
             </div>
+            <div className="topMenuWrap" ref={topMenuRef}>
+              <button
+                type="button"
+                className={`topMenuToggle ${topMenuOpen ? "open" : ""}`}
+                aria-expanded={topMenuOpen}
+                aria-label="Open guest menu"
+                onClick={() => setTopMenuOpen((prev) => !prev)}
+              >
+                <span />
+                <span />
+                <span />
+              </button>
+
+              {topMenuOpen && (
+                <div className="topMenuPanel guestMenuPanel">
+                  <div className="badges">
+                    <span className="badge">Guest preview</span>
+                    <span className="badge">Time left: {guestTrialLabel}</span>
+                  </div>
+                  <div className="controls guestControls">
+                    <button
+                      type="button"
+                      className="modeBtn"
+                      onClick={() => {
+                        setTopMenuOpen(false);
+                        goToPath("/");
+                      }}
+                    >
+                      Tutor Workspace
+                    </button>
+                    <button
+                      type="button"
+                      className="modeBtn"
+                      onClick={() => {
+                        setTopMenuOpen(false);
+                        handleGuestPlanChoice("free");
+                      }}
+                    >
+                      Student Dashboard
+                    </button>
+                    <button
+                      type="button"
+                      className="modeBtn active"
+                      onClick={() => setTopMenuOpen(false)}
+                    >
+                      Student IDE
+                    </button>
+                    <button type="button" className="modeBtn" onClick={() => openAuthPage("login")}>
+                      Login
+                    </button>
+                    <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
+                      Create Free Account
+                    </button>
+                    <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
+                      View Plans
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </header>
           <section className="mobileIdeCard">{idePanel}</section>
         </div>
@@ -1843,6 +1903,36 @@ error_text = stderr_capture.getvalue() + runtime_error
                   <span className="badge">Time left: {guestTrialLabel}</span>
                 </div>
                 <div className="controls guestControls">
+                  <button
+                    type="button"
+                    className="modeBtn"
+                    onClick={() => {
+                      setTopMenuOpen(false);
+                      goToPath("/");
+                    }}
+                  >
+                    Tutor Workspace
+                  </button>
+                  <button
+                    type="button"
+                    className="modeBtn"
+                    onClick={() => {
+                      setTopMenuOpen(false);
+                      handleGuestPlanChoice("free");
+                    }}
+                  >
+                    Student Dashboard
+                  </button>
+                  <button
+                    type="button"
+                    className="modeBtn"
+                    onClick={() => {
+                      setTopMenuOpen(false);
+                      goToPath("/tools");
+                    }}
+                  >
+                    Student IDE
+                  </button>
                   <button type="button" className="modeBtn" onClick={() => openAuthPage("login")}>
                     Login
                   </button>
@@ -1874,16 +1964,6 @@ error_text = stderr_capture.getvalue() + runtime_error
                 </button>
               </div>
             </section>
-
-            <div className="workspaceTabs">
-              <button type="button" className="modeBtn active">Tutor Workspace</button>
-              <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
-                Student Dashboard
-              </button>
-              <button type="button" className="modeBtn" onClick={() => goToPath("/tools")}>
-                Student IDE
-              </button>
-            </div>
           </>
         ) : (
           <section className="guestControlRow">
@@ -2040,6 +2120,114 @@ error_text = stderr_capture.getvalue() + runtime_error
             <h1>AI Tutor</h1>
             <p className="subtitle">IDE tools for your tutor workspace.</p>
           </div>
+          <div className="topMenuWrap" ref={topMenuRef}>
+            <button
+              type="button"
+              className={`topMenuToggle ${topMenuOpen ? "open" : ""}`}
+              aria-expanded={topMenuOpen}
+              aria-label="Open account and settings menu"
+              onClick={() => setTopMenuOpen((prev) => !prev)}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+
+            {topMenuOpen && (
+              <div className="topMenuPanel">
+                <div className="badges">
+                  <span className="badge">{isPremiumPlan ? "Premium" : isPaidPlan ? "Pro" : "Free"}</span>
+                  <span className="badge">Role: {user.role || "student"}</span>
+                  {isPaidPlan ? (
+                    <span className="badge planBadgeInline">Plan active • Renews {renewalLabel}</span>
+                  ) : (
+                    <span className="badge freeBadgeInline">{freeTurnsLabel || "Free tier access enabled"}</span>
+                  )}
+                  <span className="badge">Session turns: {Math.max(messages.length - 1, 0)}</span>
+                  <span className="badge">{user.email}</span>
+                  <button
+                    type="button"
+                    className="badge signOutBtn"
+                    onClick={() => {
+                      setTopMenuOpen(false);
+                      if (isPaidPlan) handleManageBilling();
+                      else goToPath("/pricing");
+                    }}
+                    disabled={billingActionLoading}
+                  >
+                    {isPaidPlan ? "Billing" : billingActionLoading ? "Opening..." : "Upgrade"}
+                  </button>
+                  <button
+                    type="button"
+                    className="badge signOutBtn"
+                    onClick={() => {
+                      setTopMenuOpen(false);
+                      goToPath("/pricing");
+                    }}
+                  >
+                    Pricing
+                  </button>
+                  <button
+                    type="button"
+                    className="badge signOutBtn"
+                    onClick={() => {
+                      setTopMenuOpen(false);
+                      handleSignOut();
+                    }}
+                  >
+                    Log out
+                  </button>
+                </div>
+                <div className="controls authMenuControls">
+                  <button
+                    type="button"
+                    className="modeBtn"
+                    onClick={() => {
+                      setTopMenuOpen(false);
+                      setViewMode("tutor");
+                      goToPath("/");
+                    }}
+                  >
+                    Tutor Workspace
+                  </button>
+                  <button
+                    type="button"
+                    className={`modeBtn ${viewMode === "dashboard" ? "active" : ""}`}
+                    onClick={() => {
+                      setTopMenuOpen(false);
+                      setViewMode("dashboard");
+                      setStudentDashTab("overview");
+                      fetchProgressOverview();
+                      goToPath("/");
+                    }}
+                  >
+                    Student Dashboard
+                  </button>
+                  <button
+                    type="button"
+                    className="modeBtn active"
+                    onClick={() => setTopMenuOpen(false)}
+                  >
+                    Student IDE
+                  </button>
+                  {user.role === "teacher" && (
+                    <button
+                      type="button"
+                      className={`modeBtn ${viewMode === "teacher" ? "active" : ""}`}
+                      onClick={() => {
+                        setTopMenuOpen(false);
+                        setViewMode("teacher");
+                        fetchTeacherResults();
+                        goToPath("/");
+                      }}
+                    >
+                      Teacher Dashboard
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </header>
         <section className="mobileIdeCard">{idePanel}</section>
       </div>
@@ -2117,6 +2305,57 @@ error_text = stderr_capture.getvalue() + runtime_error
                   Log out
                 </button>
               </div>
+              <div className="controls authMenuControls">
+                <button
+                  type="button"
+                  className={`modeBtn ${viewMode === "tutor" ? "active" : ""}`}
+                  onClick={() => {
+                    setTopMenuOpen(false);
+                    setViewMode("tutor");
+                    goToPath("/");
+                  }}
+                >
+                  Tutor Workspace
+                </button>
+                <button
+                  type="button"
+                  className={`modeBtn ${viewMode === "dashboard" ? "active" : ""}`}
+                  onClick={() => {
+                    setTopMenuOpen(false);
+                    setViewMode("dashboard");
+                    setStudentDashTab("overview");
+                    fetchProgressOverview();
+                    goToPath("/");
+                  }}
+                >
+                  Student Dashboard
+                </button>
+                <button
+                  type="button"
+                  className={`modeBtn ${currentPath === "/tools" ? "active" : ""}`}
+                  onClick={() => {
+                    setTopMenuOpen(false);
+                    setViewMode("tutor");
+                    goToPath("/tools");
+                  }}
+                >
+                  Student IDE
+                </button>
+                {user.role === "teacher" && (
+                  <button
+                    type="button"
+                    className={`modeBtn ${viewMode === "teacher" ? "active" : ""}`}
+                    onClick={() => {
+                      setTopMenuOpen(false);
+                      setViewMode("teacher");
+                      fetchTeacherResults();
+                      goToPath("/");
+                    }}
+                  >
+                    Teacher Dashboard
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -2140,7 +2379,7 @@ error_text = stderr_capture.getvalue() + runtime_error
         <p className="inlineLoadingBanner">Syncing your workspace data...</p>
       )}
 
-      {viewMode === "tutor" ? (
+      {!isMobileViewport && viewMode === "tutor" ? (
         <section className="guestControlRow tutorControlRow">
           <div className="workspaceTabs guestControlTabs">
             <button type="button" className="modeBtn active">Tutor Workspace</button>
@@ -2172,7 +2411,7 @@ error_text = stderr_capture.getvalue() + runtime_error
             )}
           </div>
         </section>
-      ) : (
+      ) : !isMobileViewport ? (
         <div className="workspaceTabs">
           <button
             type="button"
@@ -2201,7 +2440,7 @@ error_text = stderr_capture.getvalue() + runtime_error
             Tutor Workspace
           </button>
         </div>
-      )}
+      ) : null}
 
       {viewMode === "dashboard" && (
         <section className="dashboard">

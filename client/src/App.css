@@ -2616,30 +2616,62 @@ button:disabled {
   }
 
   .top {
-    padding: 0 4px;
+    padding: 0 2px;
+    margin-bottom: 6px;
   }
 
   .topBrandLogoImage {
-    width: 42px;
-    height: 42px;
-    border-radius: 11px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
   }
 
   .topMenuToggle {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
   }
 
   .guestWorkspace .top,
   .tutorWorkspace .top {
-    padding-left: 52px;
-    padding-right: 56px;
-    margin-bottom: 10px;
+    padding-left: 42px;
+    padding-right: 42px;
+    min-height: 30px;
+    margin-bottom: 4px;
   }
 
   .mobileIdeHeader.top {
     padding-left: 52px;
     padding-right: 52px;
+  }
+
+  .guestWorkspace .brand h1,
+  .tutorWorkspace .brand h1 {
+    font-size: clamp(1.06rem, 5.6vw, 1.26rem);
+    line-height: 1;
+  }
+
+  .guestWorkspace .subtitle,
+  .tutorWorkspace .subtitle {
+    display: none;
+  }
+
+  .guestWorkspace .guestTrialBanner,
+  .tutorWorkspace .freePlanBanner {
+    margin: 2px 0 6px;
+    padding: 8px 10px;
+  }
+
+  .topMenuPanel {
+    top: calc(100% + 6px);
+    width: min(360px, 94vw);
+    padding: 10px;
+  }
+
+  .topMenuPanel .controls .modeBtn,
+  .topMenuPanel .badge.signOutBtn {
+    min-height: 38px;
+    font-size: 0.88rem;
   }
 
   .landing {
