@@ -207,6 +207,7 @@ export default function App() {
   const jsWorkerRef = useRef(null);
   const jsWorkerTimeoutRef = useRef(null);
   const ideOutputRef = useRef(null);
+  const ideEditorRef = useRef(null);
 
   const [teacherTopic, setTeacherTopic] = useState("Python");
   const [teacherLevel, setTeacherLevel] = useState("KS3");
@@ -1051,9 +1052,23 @@ export default function App() {
       setCodeEvalResult(data?.evaluation || null);
       fetchProgressOverview();
       scrollToIdeOutput();
+      window.setTimeout(() => {
+        try {
+          ideEditorRef.current?.focus({ preventScroll: true });
+        } catch {
+          ideEditorRef.current?.focus();
+        }
+      }, 120);
     } catch (err) {
       setCodeEvalError(err?.message || "Failed to evaluate code");
       scrollToIdeOutput();
+      window.setTimeout(() => {
+        try {
+          ideEditorRef.current?.focus({ preventScroll: true });
+        } catch {
+          ideEditorRef.current?.focus();
+        }
+      }, 120);
     } finally {
       setCodeEvalLoading(false);
     }
@@ -1067,6 +1082,8 @@ export default function App() {
 
   function handleCodeInputChange(value) {
     setIdeDrafts((prev) => ({ ...prev, [codeLanguage]: value }));
+    if (codeEvalResult) setCodeEvalResult(null);
+    if (codeEvalError) setCodeEvalError("");
   }
 
   function handleResetStarterCode() {
@@ -1500,6 +1517,7 @@ error_text = stderr_capture.getvalue() + runtime_error
             <span>{codeLanguage === "python" ? "print(...)" : "console.log(...)"}</span>
           </div>
           <textarea
+            ref={ideEditorRef}
             className="ideEditor"
             value={codeInput}
             onChange={(e) => handleCodeInputChange(e.target.value)}
