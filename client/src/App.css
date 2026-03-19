@@ -3155,7 +3155,7 @@ button:disabled {
     position: static;
     display: grid;
     gap: 6px;
-    padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+    padding: 10px 0 calc(64px + env(safe-area-inset-bottom));
     background: #e7f0fb;
     border-top: 0;
     box-shadow: none;
@@ -3210,7 +3210,7 @@ button:disabled {
   .guestWorkspace .chatDock.mobile,
   .tutorWorkspace .chatDock.mobile {
     gap: 8px;
-    padding: 10px 0 calc(18px + env(safe-area-inset-bottom));
+    padding: 10px 0 calc(72px + env(safe-area-inset-bottom));
     border-radius: 0;
   }
 
