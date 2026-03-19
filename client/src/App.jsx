@@ -1464,8 +1464,6 @@ error_text = stderr_capture.getvalue() + runtime_error
   const idePanel = useMemo(
     () => (
       <div className="tips">
-        <h4>Student IDE</h4>
-        <p>Run Python or JavaScript code in-browser and inspect the output.</p>
         <div className={`ideLanguageTabs ${showStandaloneIdeBackButton ? "hasBackButton" : ""}`}>
           <button
             type="button"
@@ -1490,7 +1488,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                 chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
             >
-              Chat
+              Back to chat
             </button>
           )}
         </div>
@@ -1834,7 +1832,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                       className="modeBtn active"
                       onClick={() => setTopMenuOpen(false)}
                     >
-                      Student IDE
+                      Run code
                     </button>
                     <button type="button" className="modeBtn" onClick={() => openAuthPage("login")}>
                       Login
@@ -1844,6 +1842,17 @@ error_text = stderr_capture.getvalue() + runtime_error
                     </button>
                     <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
                       View Plans
+                    </button>
+                    <button
+                      type="button"
+                      className="modeBtn"
+                      onClick={() => {
+                        setTopMenuOpen(false);
+                        handleClearChat();
+                      }}
+                      disabled={loading || isFreshSession}
+                    >
+                      Clear Chat
                     </button>
                   </div>
                 </div>
@@ -1931,7 +1940,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                       goToPath("/tools");
                     }}
                   >
-                    Student IDE
+                    Run code
                   </button>
                   <button type="button" className="modeBtn" onClick={() => openAuthPage("login")}>
                     Login
@@ -1942,6 +1951,17 @@ error_text = stderr_capture.getvalue() + runtime_error
                   <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
                     View Plans
                   </button>
+                  <button
+                    type="button"
+                    className="modeBtn"
+                    onClick={() => {
+                      setTopMenuOpen(false);
+                      handleClearChat();
+                    }}
+                    disabled={loading || isFreshSession}
+                  >
+                    Clear Chat
+                  </button>
                 </div>
               </div>
             )}
@@ -1950,22 +1970,7 @@ error_text = stderr_capture.getvalue() + runtime_error
 
         {checkoutNotice && <p className="paywallNotice inlineNotice">{checkoutNotice}</p>}
 
-        {isMobileViewport ? (
-          <>
-            <section className="guestTrialBanner">
-              <div>
-                <h3>Guest workspace preview</h3>
-                <p>Use the tutor and IDE for 10 minutes. After that, create an account to continue.</p>
-              </div>
-              <div className="guestTrialMeta">
-                <strong>{guestTrialLabel}</strong>
-                <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
-                  Continue Free
-                </button>
-              </div>
-            </section>
-          </>
-        ) : (
+        {isMobileViewport ? null : (
           <section className="guestControlRow">
             <div className="workspaceTabs guestControlTabs">
               <button type="button" className="modeBtn active">Tutor Workspace</button>
@@ -1973,7 +1978,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                 Student Dashboard
               </button>
               <button type="button" className="modeBtn" onClick={() => goToPath("/tools")}>
-                Student IDE
+                Run code
               </button>
             </div>
 
@@ -2018,38 +2023,35 @@ error_text = stderr_capture.getvalue() + runtime_error
             </main>
 
             <div className={`chatDock ${isMobileViewport ? "mobile" : ""}`}>
-              <form className="composer" onSubmit={sendMessage}>
-                <input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask a CS question..."
-                  disabled={guestTrialExpired}
-                />
-                <button
-                  type="button"
-                  className="modeBtn clearComposerBtn"
-                  onClick={handleClearChat}
-                  disabled={loading || isFreshSession}
-                >
-                  Clear chat
-                </button>
-                <button type="submit" disabled={loading || guestTrialExpired} className="sendBtn">
-                  {loading ? "Sending..." : "Send"}
-                </button>
+              <form className="composer guestComposer" onSubmit={sendMessage}>
+                <div className="composerInputShell">
+                  <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Ask a CS question..."
+                    disabled={guestTrialExpired}
+                  />
+                  <button
+                    type="submit"
+                    disabled={loading || guestTrialExpired}
+                    className="sendBtn iconSendBtn composerSendBtn"
+                    aria-label={loading ? "Sending" : "Send question"}
+                    title={loading ? "Sending" : "Send question"}
+                  >
+                    {loading ? (
+                      "..."
+                    ) : (
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path
+                          d="M3 20L21 12L3 4V10L15 12L3 14V20Z"
+                          fill="currentColor"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </form>
 
-              {isMobileViewport && (
-                <button
-                  type="button"
-                  className="modeBtn mobileToolsToggle"
-                  onClick={() => {
-                    goToPath("/tools");
-                    sideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                >
-                  Show tools & IDE
-                </button>
-              )}
             </div>
           </div>
 
@@ -2208,7 +2210,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                     className="modeBtn active"
                     onClick={() => setTopMenuOpen(false)}
                   >
-                    Student IDE
+                    Run code
                   </button>
                   {user.role === "teacher" && (
                     <button
@@ -2339,7 +2341,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                     goToPath("/tools");
                   }}
                 >
-                  Student IDE
+                  Run code
                 </button>
                 {user.role === "teacher" && (
                   <button
@@ -2395,7 +2397,7 @@ error_text = stderr_capture.getvalue() + runtime_error
               Student Dashboard
             </button>
             <button type="button" className="modeBtn" onClick={() => goToPath("/tools")}>
-              Student IDE
+              Run code
             </button>
             {user.role === "teacher" && (
               <button
@@ -2703,18 +2705,6 @@ error_text = stderr_capture.getvalue() + runtime_error
                   <button type="submit" disabled={loading} className="sendBtn">{loading ? "Sending..." : "Send"}</button>
                 </form>
 
-                {isMobileViewport && (
-                  <button
-                    type="button"
-                    className="modeBtn mobileToolsToggle"
-                    onClick={() => {
-                      goToPath("/tools");
-                      sideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }}
-                  >
-                    Show tools & IDE
-                  </button>
-                )}
               </div>
             </div>
           </div>

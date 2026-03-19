@@ -961,6 +961,21 @@ button:disabled {
   min-width: 0;
 }
 
+.guestComposer {
+  display: block;
+  padding: 8px;
+}
+
+.composerInputShell {
+  position: relative;
+  width: 100%;
+}
+
+.guestComposer .composerInputShell input {
+  width: 100%;
+  padding-right: 56px;
+}
+
 .clearComposerBtn {
   min-width: 110px;
   padding: 0 12px;
@@ -979,6 +994,31 @@ button:disabled {
 
 .sendBtn:hover {
   box-shadow: 0 14px 24px rgba(31, 87, 159, 0.34);
+}
+
+.iconSendBtn {
+  min-width: 54px;
+  width: 54px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconSendBtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.composerSendBtn {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  min-width: 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
 }
 
 .authShell {
@@ -2985,6 +3025,11 @@ button:disabled {
     min-height: 0;
   }
 
+  .guestWorkspace .layout,
+  .tutorWorkspace .layout {
+    margin-top: 8px;
+  }
+
   .layout,
   .chatColumn,
   .side,
@@ -3131,9 +3176,25 @@ button:disabled {
     grid-column: 1 / -1;
   }
 
+  .guestComposer {
+    display: block;
+    grid-template-columns: none;
+  }
+
   .sendBtn {
     min-width: 0;
     width: 100%;
+  }
+
+  .iconSendBtn {
+    width: 100%;
+  }
+
+  .guestComposer .iconSendBtn,
+  .guestComposer .composerSendBtn {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
   }
 
   .clearComposerBtn {
