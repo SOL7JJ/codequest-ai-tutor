@@ -1052,23 +1052,9 @@ export default function App() {
       setCodeEvalResult(data?.evaluation || null);
       fetchProgressOverview();
       scrollToIdeOutput();
-      window.setTimeout(() => {
-        try {
-          ideEditorRef.current?.focus({ preventScroll: true });
-        } catch {
-          ideEditorRef.current?.focus();
-        }
-      }, 120);
     } catch (err) {
       setCodeEvalError(err?.message || "Failed to evaluate code");
       scrollToIdeOutput();
-      window.setTimeout(() => {
-        try {
-          ideEditorRef.current?.focus({ preventScroll: true });
-        } catch {
-          ideEditorRef.current?.focus();
-        }
-      }, 120);
     } finally {
       setCodeEvalLoading(false);
     }
