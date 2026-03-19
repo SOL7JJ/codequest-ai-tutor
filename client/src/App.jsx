@@ -1050,8 +1050,10 @@ export default function App() {
       if (!res.ok) throw new Error(data?.error || rawText || "Failed to evaluate code");
       setCodeEvalResult(data?.evaluation || null);
       fetchProgressOverview();
+      scrollToIdeOutput();
     } catch (err) {
       setCodeEvalError(err?.message || "Failed to evaluate code");
+      scrollToIdeOutput();
     } finally {
       setCodeEvalLoading(false);
     }
