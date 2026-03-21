@@ -1022,6 +1022,9 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     const row = result.rows[0];
+    if (!row.password_hash) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
     const isValid = await bcrypt.compare(password, row.password_hash);
 
     if (!isValid) {
@@ -2032,6 +2035,7 @@ async function ensureSchema() {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT UNIQUE");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_id TEXT");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT");
   await pool.query(
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status TEXT NOT NULL DEFAULT 'inactive'"
   );
