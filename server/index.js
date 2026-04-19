@@ -2165,6 +2165,50 @@ async function ensureSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS teacher_id BIGINT");
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS student_id BIGINT");
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS topic TEXT");
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description TEXT");
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_date DATE");
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'");
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ");
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+  await pool.query(`
+    UPDATE tasks
+    SET student_id = teacher_id
+    WHERE student_id IS NULL AND teacher_id IS NOT NULL
+  `);
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'tasks_teacher_id_fkey'
+      ) THEN
+        ALTER TABLE tasks
+        ADD CONSTRAINT tasks_teacher_id_fkey
+        FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE;
+      END IF;
+    END $$;
+  `);
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'tasks_student_id_fkey'
+      ) THEN
+        ALTER TABLE tasks
+        ADD CONSTRAINT tasks_student_id_fkey
+        FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE;
+      END IF;
+    END $$;
+  `);
+  await pool.query("ALTER TABLE tasks ALTER COLUMN teacher_id SET NOT NULL");
+  await pool.query("ALTER TABLE tasks ALTER COLUMN student_id SET NOT NULL");
+  await pool.query("ALTER TABLE tasks ALTER COLUMN title SET NOT NULL");
 
   await pool.query("CREATE INDEX IF NOT EXISTS idx_lessons_user ON lessons(user_id, created_at DESC)");
   await pool.query(
