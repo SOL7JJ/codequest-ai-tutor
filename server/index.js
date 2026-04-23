@@ -27,7 +27,11 @@ const JUDGE0_API_URL = process.env.JUDGE0_API_URL || "";
 const JUDGE0_API_KEY = process.env.JUDGE0_API_KEY || "";
 const JUDGE0_API_HOST = process.env.JUDGE0_API_HOST || "";
 const JUDGE0_LANGUAGE_ID_JAVA = Number(process.env.JUDGE0_LANGUAGE_ID_JAVA || 62);
-const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error("FATAL: JWT_SECRET environment variable is not set.");
+  process.exit(1);
+}
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 const APP_URL = process.env.APP_URL || "http://localhost:5173";
 const STRIPE_PRICE_ID_MONTHLY = process.env.STRIPE_PRICE_ID_MONTHLY || "";
@@ -70,6 +74,40 @@ const TOPICS_BY_LEVEL = {
   ],
 };
 const ALLOWED_LEVELS = Object.keys(TOPICS_BY_LEVEL);
+const CURRICULUM_GRAPH = {
+  KS3: {
+    "Programming Basics": [],
+    Algorithms: ["Programming Basics"],
+    "Data Representation": [],
+    "Computer Systems": ["Data Representation"],
+    Networks: ["Computer Systems"],
+    "Cyber Security": ["Networks"],
+  },
+  GCSE: {
+    "Computational Thinking": [],
+    "Programming Techniques": ["Computational Thinking"],
+    "Data Representation (Binary/Hex)": ["Computational Thinking"],
+    "Computer Architecture": ["Data Representation (Binary/Hex)"],
+    "Networks and Protocols": ["Computer Architecture"],
+    "Cyber Security and Threats": ["Networks and Protocols"],
+    "Databases and SQL": ["Programming Techniques"],
+    "Ethics and Legal Issues": [],
+  },
+  "A-Level": {
+    "Advanced Algorithms": ["Data Structures"],
+    "Data Structures": [],
+    "Object-Oriented Programming": ["Data Structures"],
+    "Functional Programming": [],
+    "Boolean Algebra and Logic": [],
+    "Processors and Assembly": ["Boolean Algebra and Logic"],
+    "Networks and Communication": [],
+    "Databases and Normalisation": ["Databases and SQL"],
+    "Theory of Computation": ["Boolean Algebra and Logic"],
+  },
+};
+const ALL_CURRICULUM_TOPICS = [
+  ...new Set(ALLOWED_LEVELS.flatMap((level) => TOPICS_BY_LEVEL[level] || [])),
+];
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
@@ -109,7 +147,7 @@ function resolveStripePlanFromSubscription(subscription) {
     return "pro";
   }
 
-  return "pro";
+  return "free";
 }
 
 function getCheckoutPlanConfig(requestedPlan) {
@@ -333,7 +371,208 @@ function normalizeTutorTopic(level, topicRaw) {
   return allowedTopics.includes(requestedTopic) ? requestedTopic : allowedTopics[0];
 }
 
-function buildTutorSystemPrompt({ level, topic, mode, preferConcise = false }) {
+function inferLevelFromTopic(topicRaw, fallbackLevel = "KS3") {
+  const requestedTopic = String(topicRaw || "").trim();
+  if (!requestedTopic) return normalizeTutorLevel(fallbackLevel);
+  const matchedLevel = ALLOWED_LEVELS.find((level) => (TOPICS_BY_LEVEL[level] || []).includes(requestedTopic));
+  return normalizeTutorLevel(matchedLevel || fallbackLevel);
+}
+
+function createDefaultMasteryMap() {
+  return Object.fromEntries(ALL_CURRICULUM_TOPICS.map((topic) => [topic, 0.35]));
+}
+
+function clampMastery(value) {
+  return Math.max(0, Math.min(1, Number(value || 0)));
+}
+
+function normalizeMasteryMap(input = {}) {
+  const fallback = createDefaultMasteryMap();
+  for (const topic of ALL_CURRICULUM_TOPICS) {
+    if (Object.prototype.hasOwnProperty.call(input, topic)) {
+      fallback[topic] = clampMastery(input[topic]);
+    }
+  }
+  return fallback;
+}
+
+function deriveWeakAndStrongTopics(mastery = {}, level = "KS3") {
+  const topics = TOPICS_BY_LEVEL[level] || TOPICS_BY_LEVEL.KS3;
+  const scored = topics
+    .map((topic) => ({ topic, score: clampMastery(mastery[topic]) }))
+    .sort((a, b) => a.score - b.score);
+
+  return {
+    weakTopics: scored.filter((entry) => entry.score < 0.5).map((entry) => entry.topic).slice(0, 4),
+    strongTopics: scored
+      .filter((entry) => entry.score >= 0.75)
+      .sort((a, b) => b.score - a.score)
+      .map((entry) => entry.topic)
+      .slice(0, 4),
+  };
+}
+
+function pickPreferredExplanationStyle(mode = "Explain") {
+  if (mode === "Hint") return "hint-first";
+  if (mode === "Quiz") return "practice-first";
+  if (mode === "Mark") return "feedback-first";
+  return "step-by-step";
+}
+
+function getTopicPrerequisites(level, topic) {
+  return CURRICULUM_GRAPH[level]?.[topic] || [];
+}
+
+function calculateMasteryDelta(signalType, scoreValue = null) {
+  switch (signalType) {
+    case "lesson_completed":
+      return 0.08;
+    case "quiz_attempt": {
+      const percent = Number(scoreValue || 0);
+      if (percent >= 85) return 0.14;
+      if (percent >= 70) return 0.08;
+      if (percent >= 50) return 0.02;
+      if (percent >= 35) return -0.04;
+      return -0.1;
+    }
+    case "code_evaluation": {
+      const score = Number(scoreValue || 0);
+      if (score >= 8.5) return 0.1;
+      if (score >= 7) return 0.06;
+      if (score >= 5) return 0.01;
+      if (score >= 3) return -0.03;
+      return -0.08;
+    }
+    case "tutor_request":
+      return -0.01;
+    default:
+      return 0;
+  }
+}
+
+function buildRecommendationFromProfile(profile, level = "KS3") {
+  const normalizedLevel = normalizeTutorLevel(level || profile?.level);
+  const mastery = normalizeMasteryMap(profile?.mastery_json || {});
+  const allowedTopics = TOPICS_BY_LEVEL[normalizedLevel] || TOPICS_BY_LEVEL.KS3;
+  const unlockedTopics = allowedTopics.filter((topic) =>
+    getTopicPrerequisites(normalizedLevel, topic).every((prereq) => clampMastery(mastery[prereq]) >= 0.55)
+  );
+  const candidatePool = unlockedTopics.length ? unlockedTopics : allowedTopics;
+  const weakestTopic = candidatePool.reduce((best, topic) => {
+    if (!best) return topic;
+    return clampMastery(mastery[topic]) < clampMastery(mastery[best]) ? topic : best;
+  }, "");
+  const score = clampMastery(mastery[weakestTopic]);
+  const difficulty = score < 0.45 ? "beginner" : score < 0.75 ? "intermediate" : "stretch";
+  const prerequisites = getTopicPrerequisites(normalizedLevel, weakestTopic);
+  const reason = prerequisites.length
+    ? `Recommended because ${weakestTopic} is the next weak topic after ${prerequisites.join(", ")}.`
+    : `Recommended because ${weakestTopic} is currently the weakest topic in your ${normalizedLevel} pathway.`;
+
+  return {
+    level: normalizedLevel,
+    topic: weakestTopic || allowedTopics[0],
+    difficulty,
+    reason,
+    weakTopics: deriveWeakAndStrongTopics(mastery, normalizedLevel).weakTopics,
+    strongTopics: deriveWeakAndStrongTopics(mastery, normalizedLevel).strongTopics,
+    mastery,
+  };
+}
+
+async function ensureLearnerProfile(userId, level = "KS3") {
+  if (!pool) return null;
+  const normalizedLevel = normalizeTutorLevel(level);
+  const existing = await pool.query(`SELECT * FROM learner_profiles WHERE user_id = $1`, [userId]);
+  if (existing.rows.length) {
+    const row = existing.rows[0];
+    const mastery = normalizeMasteryMap(row.mastery_json || {});
+    const currentLevel = normalizeTutorLevel(row.level || normalizedLevel);
+    const { weakTopics, strongTopics } = deriveWeakAndStrongTopics(mastery, currentLevel);
+    return { ...row, level: currentLevel, mastery_json: mastery, weak_topics_json: weakTopics, strong_topics_json: strongTopics };
+  }
+
+  const mastery = createDefaultMasteryMap();
+  const { weakTopics, strongTopics } = deriveWeakAndStrongTopics(mastery, normalizedLevel);
+  const inserted = await pool.query(
+    `INSERT INTO learner_profiles(
+      user_id, level, mastery_json, weak_topics_json, strong_topics_json, preferred_explanation_style, last_topic
+     ) VALUES($1, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6, $7)
+     ON CONFLICT (user_id) DO NOTHING
+     RETURNING *`,
+    [
+      userId,
+      normalizedLevel,
+      JSON.stringify(mastery),
+      JSON.stringify(weakTopics),
+      JSON.stringify(strongTopics),
+      "step-by-step",
+      null,
+    ]
+  );
+  if (inserted.rows.length) {
+    return inserted.rows[0];
+  }
+  const retry = await pool.query(`SELECT * FROM learner_profiles WHERE user_id = $1`, [userId]);
+  return retry.rows[0] || null;
+}
+
+async function applyLearnerSignal({ userId, level = "KS3", topic, signalType, scoreValue = null, mode = "Explain", topics = [] }) {
+  if (!pool) return null;
+
+  const profile = await ensureLearnerProfile(userId, level);
+  if (!profile) return null;
+
+  const normalizedLevel = normalizeTutorLevel(level || profile.level);
+  const mastery = normalizeMasteryMap(profile.mastery_json || {});
+  const targetTopics = [...new Set([topic, ...topics].map((entry) => String(entry || "").trim()).filter(Boolean))];
+  const delta = calculateMasteryDelta(signalType, scoreValue);
+
+  for (const entry of targetTopics) {
+    if (!Object.prototype.hasOwnProperty.call(mastery, entry)) continue;
+    mastery[entry] = clampMastery(mastery[entry] + delta);
+  }
+
+  const { weakTopics, strongTopics } = deriveWeakAndStrongTopics(mastery, normalizedLevel);
+  const preferredExplanationStyle = pickPreferredExplanationStyle(mode || profile.preferred_explanation_style);
+  const lastTopic = targetTopics[0] || profile.last_topic || null;
+
+  const result = await pool.query(
+    `UPDATE learner_profiles
+     SET level = $2,
+         mastery_json = $3::jsonb,
+         weak_topics_json = $4::jsonb,
+         strong_topics_json = $5::jsonb,
+         preferred_explanation_style = $6,
+         last_topic = $7,
+         updated_at = NOW()
+     WHERE user_id = $1
+     RETURNING *`,
+    [
+      userId,
+      normalizedLevel,
+      JSON.stringify(mastery),
+      JSON.stringify(weakTopics),
+      JSON.stringify(strongTopics),
+      preferredExplanationStyle,
+      lastTopic,
+    ]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function getAdaptiveLearnerContext(userId, level, topic) {
+  const profile = await ensureLearnerProfile(userId, level);
+  const recommendation = buildRecommendationFromProfile(profile, level);
+  return {
+    profile,
+    recommendation,
+    selectedTopicMastery: clampMastery(recommendation.mastery[topic]),
+  };
+}
+
+function buildTutorSystemPrompt({ level, topic, mode, preferConcise = false, learnerContext = null }) {
   const levelInstructionMap = {
     KS3: "Use simple vocabulary, short steps, and concrete beginner examples.",
     GCSE: "Use GCSE terminology, exam-style structure, and concise mark-scheme cues.",
@@ -350,10 +589,27 @@ function buildTutorSystemPrompt({ level, topic, mode, preferConcise = false }) {
     "If the user asks beyond the selected level, briefly acknowledge it and then explain at the selected level first.",
     "Use UK curriculum framing when helpful.",
     "Teach clearly and step-by-step.",
+    "End every answer with one short follow-up question that keeps the student engaged.",
+    "The follow-up question should be directly related to the topic or the student's likely next step.",
     "You can call tools. Call tools when they improve correctness, level alignment, or personalization.",
     "Do not mention tool internals to the student.",
     "Never include topics outside the selected level unless framed as future learning only.",
   ];
+
+  if (learnerContext?.recommendation) {
+    const { recommendation, selectedTopicMastery } = learnerContext;
+    if (recommendation.weakTopics?.length) {
+      promptParts.push(`Weak topics: ${recommendation.weakTopics.join(", ")}.`);
+    }
+    if (recommendation.strongTopics?.length) {
+      promptParts.push(`Strong topics: ${recommendation.strongTopics.join(", ")}.`);
+    }
+    if (recommendation.topic) {
+      promptParts.push(`Recommended next topic: ${recommendation.topic} (${recommendation.difficulty}).`);
+    }
+    promptParts.push(`Selected topic mastery estimate: ${(selectedTopicMastery * 100).toFixed(0)}%.`);
+    promptParts.push("If the selected topic is weak, use extra scaffolding and simpler worked examples.");
+  }
 
   if (preferConcise) {
     promptParts.push("Prefer concise answers unless the user asks for more detail.");
@@ -460,14 +716,19 @@ async function executeTutorTool({ call, userId, level, topic, mode }) {
     case "get_progress_snapshot":
       return await getLearnerSnapshot(userId);
     case "recommend_next_topic": {
+      const adaptiveContext = await getAdaptiveLearnerContext(userId, level, topic);
+      const recommendation = adaptiveContext.recommendation;
       const snapshot = await getLearnerSnapshot(userId);
       const unseen = allowedTopics.filter((entry) => !snapshot.topTopics.includes(entry));
       return {
         level,
-        recommendedTopic: unseen[0] || allowedTopics[0],
-        reason: unseen[0]
-          ? "Suggested based on level curriculum coverage."
-          : "Suggested for spaced reinforcement within your current level.",
+        recommendedTopic: recommendation.topic || unseen[0] || allowedTopics[0],
+        reason:
+          recommendation.reason ||
+          (unseen[0]
+            ? "Suggested based on level curriculum coverage."
+            : "Suggested for spaced reinforcement within your current level."),
+        difficulty: recommendation.difficulty || "beginner",
       };
     }
     default:
@@ -511,7 +772,8 @@ async function runTutorAgent({
   mode,
   preferConcise = false,
 }) {
-  const system = buildTutorSystemPrompt({ level, topic, mode, preferConcise });
+  const learnerContext = await getAdaptiveLearnerContext(userId, level, topic);
+  const system = buildTutorSystemPrompt({ level, topic, mode, preferConcise, learnerContext });
   const tools = [
     {
       type: "function",
@@ -615,8 +877,9 @@ async function runTutorAgent({
   return guardedReply;
 }
 
-async function runTutorDirect({ client, message, level, topic, mode, preferConcise = false }) {
-  const system = buildTutorSystemPrompt({ level, topic, mode, preferConcise });
+async function runTutorDirect({ client, userId, message, level, topic, mode, preferConcise = false }) {
+  const learnerContext = await getAdaptiveLearnerContext(userId, level, topic);
+  const system = buildTutorSystemPrompt({ level, topic, mode, preferConcise, learnerContext });
   const response = await client.responses.create({
     model: AGENT_MODEL,
     max_output_tokens: MAX_OUTPUT_TOKENS,
@@ -660,6 +923,13 @@ async function persistLearningEvent({ userId, level, topic, mode }) {
        VALUES ($1, $2, $3, $4)`,
       [userId, level || null, topic || null, mode || null]
     );
+    await applyLearnerSignal({
+      userId,
+      level: level || "KS3",
+      topic: topic || null,
+      signalType: "tutor_request",
+      mode,
+    });
   } catch (err) {
     console.error("Persist learning event error:", err);
   }
@@ -906,7 +1176,7 @@ function buildDemoFallbackReply(message = "") {
 }
 
 function tutorRateLimit(req, res, next) {
-  const key = req.user?.sub || req.ip || req.headers["x-forwarded-for"] || "unknown";
+  const key = req.user?.sub || req.headers["x-forwarded-for"]?.split(",")[0].trim() || req.ip || "unknown";
   const now = Date.now();
   const record = tutorRateLimitState.get(key);
 
@@ -988,6 +1258,7 @@ app.post("/api/auth/register", async (req, res) => {
     );
 
     const user = result.rows[0];
+    await ensureLearnerProfile(user.id, "KS3");
     const token = buildToken(user);
 
     return res.status(201).json({ token, user });
@@ -1411,6 +1682,32 @@ app.get("/api/progress/summary", requireAuth, async (req, res) => {
   }
 });
 
+app.get("/api/student/recommendation", requireAuth, async (req, res) => {
+  if (!requireDatabase(res)) return;
+
+  try {
+    const requestedLevel = normalizeTutorLevel(req.query.level || "KS3");
+    const adaptiveContext = await getAdaptiveLearnerContext(req.user.sub, requestedLevel, "");
+    const recommendation = adaptiveContext.recommendation;
+
+    return res.status(200).json({
+      recommendation: {
+        level: recommendation.level,
+        recommendedTopic: recommendation.topic,
+        reason: recommendation.reason,
+        difficulty: recommendation.difficulty,
+        weakTopics: recommendation.weakTopics,
+        strongTopics: recommendation.strongTopics,
+        currentLevelTopics: TOPICS_BY_LEVEL[recommendation.level] || [],
+        graph: CURRICULUM_GRAPH[recommendation.level] || {},
+      },
+    });
+  } catch (err) {
+    console.error("Student recommendation error:", err);
+    return res.status(500).json({ error: "Failed to fetch recommendation" });
+  }
+});
+
 app.get("/api/student/lessons", requireAuth, async (req, res) => {
   if (!requireDatabase(res)) return;
   try {
@@ -1441,6 +1738,12 @@ app.post("/api/student/lessons", requireAuth, async (req, res) => {
        RETURNING id, title, topic, completed, created_at, completed_at`,
       [req.user.sub, title.trim(), (topic || "").trim() || null]
     );
+    await applyLearnerSignal({
+      userId: req.user.sub,
+      level: inferLevelFromTopic(result.rows[0]?.topic, "KS3"),
+      topic: result.rows[0]?.topic || null,
+      signalType: "lesson_started",
+    });
     return res.status(201).json({ lesson: result.rows[0] });
   } catch (err) {
     console.error("Create lesson error:", err);
@@ -1465,6 +1768,14 @@ app.patch("/api/student/lessons/:lessonId", requireAuth, async (req, res) => {
       [completed, lessonId, req.user.sub]
     );
     if (!result.rows.length) return res.status(404).json({ error: "Lesson not found" });
+    if (completed) {
+      await applyLearnerSignal({
+        userId: req.user.sub,
+        level: inferLevelFromTopic(result.rows[0]?.topic, "KS3"),
+        topic: result.rows[0]?.topic || null,
+        signalType: "lesson_completed",
+      });
+    }
     return res.status(200).json({ lesson: result.rows[0] });
   } catch (err) {
     console.error("Update lesson error:", err);
@@ -1485,6 +1796,14 @@ app.post("/api/student/quiz-attempts", requireAuth, async (req, res) => {
        RETURNING id, topic, score, max_score, created_at`,
       [req.user.sub, String(topic), Number(score), Number(maxScore)]
     );
+    await applyLearnerSignal({
+      userId: req.user.sub,
+      level: inferLevelFromTopic(topic, "KS3"),
+      topic: String(topic),
+      signalType: "quiz_attempt",
+      scoreValue: (Number(score) / Math.max(Number(maxScore), 1)) * 100,
+      mode: "Quiz",
+    });
     return res.status(201).json({ attempt: result.rows[0] });
   } catch (err) {
     console.error("Quiz attempt error:", err);
@@ -1555,6 +1874,15 @@ app.post("/api/code/evaluate", requireAuth, tutorRateLimit, async (req, res) => 
         JSON.stringify(evaluation.tips),
       ]
     );
+    await applyLearnerSignal({
+      userId: req.user.sub,
+      level: inferLevelFromTopic(topic, "KS3"),
+      topic: String(topic || "General"),
+      topics: evaluation.topics || [],
+      signalType: "code_evaluation",
+      scoreValue: Number(evaluation.score),
+      mode: "Explain",
+    });
     return res.status(200).json({ evaluation });
   } catch (err) {
     console.error("Code evaluation error:", err);
@@ -2032,6 +2360,19 @@ async function ensureSchema() {
     )
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS learner_profiles (
+      user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      level TEXT NOT NULL DEFAULT 'KS3',
+      mastery_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+      weak_topics_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+      strong_topics_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+      preferred_explanation_style TEXT NOT NULL DEFAULT 'step-by-step',
+      last_topic TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT UNIQUE");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_id TEXT");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT");
@@ -2047,6 +2388,21 @@ async function ensureSchema() {
   );
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'student'");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free'");
+  await pool.query("ALTER TABLE learner_profiles ADD COLUMN IF NOT EXISTS level TEXT NOT NULL DEFAULT 'KS3'");
+  await pool.query("ALTER TABLE learner_profiles ADD COLUMN IF NOT EXISTS mastery_json JSONB NOT NULL DEFAULT '{}'::jsonb");
+  await pool.query(
+    "ALTER TABLE learner_profiles ADD COLUMN IF NOT EXISTS weak_topics_json JSONB NOT NULL DEFAULT '[]'::jsonb"
+  );
+  await pool.query(
+    "ALTER TABLE learner_profiles ADD COLUMN IF NOT EXISTS strong_topics_json JSONB NOT NULL DEFAULT '[]'::jsonb"
+  );
+  await pool.query(
+    "ALTER TABLE learner_profiles ADD COLUMN IF NOT EXISTS preferred_explanation_style TEXT NOT NULL DEFAULT 'step-by-step'"
+  );
+  await pool.query("ALTER TABLE learner_profiles ADD COLUMN IF NOT EXISTS last_topic TEXT");
+  await pool.query(
+    "ALTER TABLE learner_profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
+  );
   await pool.query(`
     UPDATE users
     SET plan = CASE
@@ -2218,6 +2574,12 @@ async function ensureSchema() {
   await pool.query("CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user ON quiz_attempts(user_id, created_at DESC)");
   await pool.query(
     "CREATE INDEX IF NOT EXISTS idx_code_evaluations_user ON code_evaluations(user_id, created_at DESC)"
+  );
+  await pool.query(
+    `INSERT INTO learner_profiles(user_id, level, mastery_json, weak_topics_json, strong_topics_json, preferred_explanation_style)
+     SELECT id, 'KS3', '{}'::jsonb, '[]'::jsonb, '[]'::jsonb, 'step-by-step'
+     FROM users
+     ON CONFLICT (user_id) DO NOTHING`
   );
   await pool.query("CREATE INDEX IF NOT EXISTS idx_tasks_student ON tasks(student_id, created_at DESC)");
   await pool.query("CREATE INDEX IF NOT EXISTS idx_tasks_teacher ON tasks(teacher_id, created_at DESC)");
