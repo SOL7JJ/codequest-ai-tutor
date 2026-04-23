@@ -1877,61 +1877,64 @@ error_text = stderr_capture.getvalue() + runtime_error
               </button>
 
               {topMenuOpen && (
-                <div className="topMenuPanel guestMenuPanel">
-                  <div className="badges">
-                    <span className="badge">Guest preview</span>
-                    <span className="badge">Time left: {guestTrialLabel}</span>
+                <>
+                  <div className="menuBackdrop" onPointerDown={() => setTopMenuOpen(false)} />
+                  <div className="topMenuPanel guestMenuPanel">
+                    <div className="badges">
+                      <span className="badge">Guest preview</span>
+                      <span className="badge">Time left: {guestTrialLabel}</span>
+                    </div>
+                    <div className="controls guestControls">
+                      <button
+                        type="button"
+                        className="modeBtn"
+                        onClick={() => {
+                          setTopMenuOpen(false);
+                          goToPath("/");
+                        }}
+                      >
+                        Tutor Workspace
+                      </button>
+                      <button
+                        type="button"
+                        className="modeBtn"
+                        onClick={() => {
+                          setTopMenuOpen(false);
+                          handleGuestPlanChoice("free");
+                        }}
+                      >
+                        Student Dashboard
+                      </button>
+                      <button
+                        type="button"
+                        className="modeBtn active"
+                        onClick={() => setTopMenuOpen(false)}
+                      >
+                        Run code
+                      </button>
+                      <button type="button" className="modeBtn" onClick={() => openAuthPage("login")}>
+                        Login
+                      </button>
+                      <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
+                        Create Free Account
+                      </button>
+                      <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
+                        View Plans
+                      </button>
+                      <button
+                        type="button"
+                        className="modeBtn"
+                        onClick={() => {
+                          setTopMenuOpen(false);
+                          handleClearChat();
+                        }}
+                        disabled={loading || isFreshSession}
+                      >
+                        Clear Chat
+                      </button>
+                    </div>
                   </div>
-                  <div className="controls guestControls">
-                    <button
-                      type="button"
-                      className="modeBtn"
-                      onClick={() => {
-                        setTopMenuOpen(false);
-                        goToPath("/");
-                      }}
-                    >
-                      Tutor Workspace
-                    </button>
-                    <button
-                      type="button"
-                      className="modeBtn"
-                      onClick={() => {
-                        setTopMenuOpen(false);
-                        handleGuestPlanChoice("free");
-                      }}
-                    >
-                      Student Dashboard
-                    </button>
-                    <button
-                      type="button"
-                      className="modeBtn active"
-                      onClick={() => setTopMenuOpen(false)}
-                    >
-                      Run code
-                    </button>
-                    <button type="button" className="modeBtn" onClick={() => openAuthPage("login")}>
-                      Login
-                    </button>
-                    <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
-                      Create Free Account
-                    </button>
-                    <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
-                      View Plans
-                    </button>
-                    <button
-                      type="button"
-                      className="modeBtn"
-                      onClick={() => {
-                        setTopMenuOpen(false);
-                        handleClearChat();
-                      }}
-                      disabled={loading || isFreshSession}
-                    >
-                      Clear Chat
-                    </button>
-                  </div>
-                </div>
+                </>
               )}
             </div>
           </header>
@@ -1982,64 +1985,67 @@ error_text = stderr_capture.getvalue() + runtime_error
             </button>
 
             {topMenuOpen && (
-              <div className="topMenuPanel guestMenuPanel">
-                <div className="badges">
-                  <span className="badge">Guest preview</span>
-                  <span className="badge">Time left: {guestTrialLabel}</span>
+              <>
+                <div className="menuBackdrop" onPointerDown={() => setTopMenuOpen(false)} />
+                <div className="topMenuPanel guestMenuPanel">
+                  <div className="badges">
+                    <span className="badge">Guest preview</span>
+                    <span className="badge">Time left: {guestTrialLabel}</span>
+                  </div>
+                  <div className="controls guestControls">
+                    <button
+                      type="button"
+                      className="modeBtn"
+                      onClick={() => {
+                        setTopMenuOpen(false);
+                        goToPath("/");
+                      }}
+                    >
+                      Tutor Workspace
+                    </button>
+                    <button
+                      type="button"
+                      className="modeBtn"
+                      onClick={() => {
+                        setTopMenuOpen(false);
+                        handleGuestPlanChoice("free");
+                      }}
+                    >
+                      Student Dashboard
+                    </button>
+                    <button
+                      type="button"
+                      className="modeBtn"
+                      onClick={() => {
+                        setTopMenuOpen(false);
+                        goToPath("/tools");
+                      }}
+                    >
+                      Run code
+                    </button>
+                    <button type="button" className="modeBtn" onClick={() => openAuthPage("login")}>
+                      Login
+                    </button>
+                    <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
+                      Create Free Account
+                    </button>
+                    <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
+                      View Plans
+                    </button>
+                    <button
+                      type="button"
+                      className="modeBtn"
+                      onClick={() => {
+                        setTopMenuOpen(false);
+                        handleClearChat();
+                      }}
+                      disabled={loading || isFreshSession}
+                    >
+                      Clear Chat
+                    </button>
+                  </div>
                 </div>
-                <div className="controls guestControls">
-                  <button
-                    type="button"
-                    className="modeBtn"
-                    onClick={() => {
-                      setTopMenuOpen(false);
-                      goToPath("/");
-                    }}
-                  >
-                    Tutor Workspace
-                  </button>
-                  <button
-                    type="button"
-                    className="modeBtn"
-                    onClick={() => {
-                      setTopMenuOpen(false);
-                      handleGuestPlanChoice("free");
-                    }}
-                  >
-                    Student Dashboard
-                  </button>
-                  <button
-                    type="button"
-                    className="modeBtn"
-                    onClick={() => {
-                      setTopMenuOpen(false);
-                      goToPath("/tools");
-                    }}
-                  >
-                    Run code
-                  </button>
-                  <button type="button" className="modeBtn" onClick={() => openAuthPage("login")}>
-                    Login
-                  </button>
-                  <button type="button" className="modeBtn" onClick={() => handleGuestPlanChoice("free")}>
-                    Create Free Account
-                  </button>
-                  <button type="button" className="modeBtn" onClick={() => goToPath("/pricing")}>
-                    View Plans
-                  </button>
-                  <button
-                    type="button"
-                    className="modeBtn"
-                    onClick={() => {
-                      setTopMenuOpen(false);
-                      handleClearChat();
-                    }}
-                    disabled={loading || isFreshSession}
-                  >
-                    Clear Chat
-                  </button>
-                </div>
-              </div>
+              </>
             )}
           </div>
         </header>
@@ -2215,6 +2221,138 @@ error_text = stderr_capture.getvalue() + runtime_error
             </button>
 
             {topMenuOpen && (
+              <>
+                <div className="menuBackdrop" onPointerDown={() => setTopMenuOpen(false)} />
+                <div className="topMenuPanel">
+                  <div className="badges">
+                    <span className="badge">{isPremiumPlan ? "Premium" : isPaidPlan ? "Pro" : "Free"}</span>
+                    <span className="badge">Role: {user?.role || "student"}</span>
+                    {isPaidPlan ? (
+                      <span className="badge planBadgeInline">Plan active • Renews {renewalLabel}</span>
+                    ) : (
+                      <span className="badge freeBadgeInline">{freeTurnsLabel || "Free tier access enabled"}</span>
+                    )}
+                    <span className="badge">Session turns: {Math.max(messages.length - 1, 0)}</span>
+                    <span className="badge">{user.email}</span>
+                    <button
+                      type="button"
+                      className="badge signOutBtn"
+                      onClick={() => {
+                        setTopMenuOpen(false);
+                        if (isPaidPlan) handleManageBilling();
+                        else goToPath("/pricing");
+                      }}
+                      disabled={billingActionLoading}
+                    >
+                      {isPaidPlan ? "Billing" : billingActionLoading ? "Opening..." : "Upgrade"}
+                    </button>
+                    <button
+                      type="button"
+                      className="badge signOutBtn"
+                      onClick={() => {
+                        setTopMenuOpen(false);
+                        goToPath("/pricing");
+                      }}
+                    >
+                      Pricing
+                    </button>
+                    <button
+                      type="button"
+                      className="badge signOutBtn"
+                      onClick={() => {
+                        setTopMenuOpen(false);
+                        handleSignOut();
+                      }}
+                    >
+                      Log out
+                    </button>
+                  </div>
+                  <div className="controls authMenuControls">
+                    <button
+                      type="button"
+                      className="modeBtn"
+                      onClick={() => {
+                        setTopMenuOpen(false);
+                        setViewMode("tutor");
+                        goToPath("/");
+                      }}
+                    >
+                      Tutor Workspace
+                    </button>
+                    <button
+                      type="button"
+                      className={`modeBtn ${viewMode === "dashboard" ? "active" : ""}`}
+                      onClick={() => {
+                        setTopMenuOpen(false);
+                        setViewMode("dashboard");
+                        setStudentDashTab("overview");
+                        fetchProgressOverview();
+                        goToPath("/");
+                      }}
+                    >
+                      Student Dashboard
+                    </button>
+                    <button
+                      type="button"
+                      className="modeBtn active"
+                      onClick={() => setTopMenuOpen(false)}
+                    >
+                      Run code
+                    </button>
+                    {user.role === "teacher" && (
+                      <button
+                        type="button"
+                        className={`modeBtn ${viewMode === "teacher" ? "active" : ""}`}
+                        onClick={() => {
+                          setTopMenuOpen(false);
+                          setViewMode("teacher");
+                          fetchTeacherResults();
+                          goToPath("/");
+                        }}
+                      >
+                        Teacher Dashboard
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </header>
+        <section className="mobileIdeCard">{idePanel}</section>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`wrap ${viewMode === "dashboard" || viewMode === "teacher" ? "wrapScrollable" : ""} ${
+        viewMode === "tutor" ? "tutorWorkspace" : ""
+      }`}
+    >
+      <header className="top">
+        {topHeaderLogo}
+        <div className="brand">
+          <h1>AI Tutor</h1>
+          <p className="subtitle">Learn coding with your personal AI Tutor.</p>
+        </div>
+
+        <div className="topMenuWrap" ref={topMenuRef}>
+          <button
+            type="button"
+            className={`topMenuToggle ${topMenuOpen ? "open" : ""}`}
+            aria-expanded={topMenuOpen}
+            aria-label="Open account and settings menu"
+            onPointerDown={handleTopMenuToggle}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+
+          {topMenuOpen && (
+            <>
+              <div className="menuBackdrop" onPointerDown={() => setTopMenuOpen(false)} />
               <div className="topMenuPanel">
                 <div className="badges">
                   <span className="badge">{isPremiumPlan ? "Premium" : isPaidPlan ? "Pro" : "Free"}</span>
@@ -2262,7 +2400,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                 <div className="controls authMenuControls">
                   <button
                     type="button"
-                    className="modeBtn"
+                    className={`modeBtn ${viewMode === "tutor" ? "active" : ""}`}
                     onClick={() => {
                       setTopMenuOpen(false);
                       setViewMode("tutor");
@@ -2286,8 +2424,12 @@ error_text = stderr_capture.getvalue() + runtime_error
                   </button>
                   <button
                     type="button"
-                    className="modeBtn active"
-                    onClick={() => setTopMenuOpen(false)}
+                    className={`modeBtn ${currentPath === "/tools" ? "active" : ""}`}
+                    onClick={() => {
+                      setTopMenuOpen(false);
+                      setViewMode("tutor");
+                      goToPath("/tools");
+                    }}
                   >
                     Run code
                   </button>
@@ -2307,137 +2449,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                   )}
                 </div>
               </div>
-            )}
-          </div>
-        </header>
-        <section className="mobileIdeCard">{idePanel}</section>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={`wrap ${viewMode === "dashboard" || viewMode === "teacher" ? "wrapScrollable" : ""} ${
-        viewMode === "tutor" ? "tutorWorkspace" : ""
-      }`}
-    >
-      <header className="top">
-        {topHeaderLogo}
-        <div className="brand">
-          <h1>AI Tutor</h1>
-          <p className="subtitle">Learn coding with your personal AI Tutor.</p>
-        </div>
-
-        <div className="topMenuWrap" ref={topMenuRef}>
-          <button
-            type="button"
-            className={`topMenuToggle ${topMenuOpen ? "open" : ""}`}
-            aria-expanded={topMenuOpen}
-            aria-label="Open account and settings menu"
-            onPointerDown={handleTopMenuToggle}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-
-          {topMenuOpen && (
-            <div className="topMenuPanel">
-              <div className="badges">
-                <span className="badge">{isPremiumPlan ? "Premium" : isPaidPlan ? "Pro" : "Free"}</span>
-                <span className="badge">Role: {user.role || "student"}</span>
-                {isPaidPlan ? (
-                  <span className="badge planBadgeInline">Plan active • Renews {renewalLabel}</span>
-                ) : (
-                  <span className="badge freeBadgeInline">{freeTurnsLabel || "Free tier access enabled"}</span>
-                )}
-                <span className="badge">Session turns: {Math.max(messages.length - 1, 0)}</span>
-                <span className="badge">{user.email}</span>
-                <button
-                  type="button"
-                  className="badge signOutBtn"
-                  onClick={() => {
-                    setTopMenuOpen(false);
-                    if (isPaidPlan) handleManageBilling();
-                    else goToPath("/pricing");
-                  }}
-                  disabled={billingActionLoading}
-                >
-                  {isPaidPlan ? "Billing" : billingActionLoading ? "Opening..." : "Upgrade"}
-                </button>
-                <button
-                  type="button"
-                  className="badge signOutBtn"
-                  onClick={() => {
-                    setTopMenuOpen(false);
-                    goToPath("/pricing");
-                  }}
-                >
-                  Pricing
-                </button>
-                <button
-                  type="button"
-                  className="badge signOutBtn"
-                  onClick={() => {
-                    setTopMenuOpen(false);
-                    handleSignOut();
-                  }}
-                >
-                  Log out
-                </button>
-              </div>
-              <div className="controls authMenuControls">
-                <button
-                  type="button"
-                  className={`modeBtn ${viewMode === "tutor" ? "active" : ""}`}
-                  onClick={() => {
-                    setTopMenuOpen(false);
-                    setViewMode("tutor");
-                    goToPath("/");
-                  }}
-                >
-                  Tutor Workspace
-                </button>
-                <button
-                  type="button"
-                  className={`modeBtn ${viewMode === "dashboard" ? "active" : ""}`}
-                  onClick={() => {
-                    setTopMenuOpen(false);
-                    setViewMode("dashboard");
-                    setStudentDashTab("overview");
-                    fetchProgressOverview();
-                    goToPath("/");
-                  }}
-                >
-                  Student Dashboard
-                </button>
-                <button
-                  type="button"
-                  className={`modeBtn ${currentPath === "/tools" ? "active" : ""}`}
-                  onClick={() => {
-                    setTopMenuOpen(false);
-                    setViewMode("tutor");
-                    goToPath("/tools");
-                  }}
-                >
-                  Run code
-                </button>
-                {user.role === "teacher" && (
-                  <button
-                    type="button"
-                    className={`modeBtn ${viewMode === "teacher" ? "active" : ""}`}
-                    onClick={() => {
-                      setTopMenuOpen(false);
-                      setViewMode("teacher");
-                      fetchTeacherResults();
-                      goToPath("/");
-                    }}
-                  >
-                    Teacher Dashboard
-                  </button>
-                )}
-              </div>
-            </div>
+            </>
           )}
         </div>
       </header>
