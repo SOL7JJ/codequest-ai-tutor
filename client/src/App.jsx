@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
+import {
+  resetAnalyticsUser,
+  setAnalyticsUser,
+  trackAnalyticsEvent,
+  trackOncePerSession,
+  trackOncePerUser,
+} from "./analytics.js";
 
 const API_BASE = import.meta.env.VITE_API_URL || "https://codequest-ai-tutor.onrender.com";
 const TOKEN_KEY = "codequest_auth_token";
 const LAST_EMAIL_KEY = "codequest_last_email";
 const CHECKOUT_NOTICE_KEY = "codequest_checkout_notice";
-const FIRST_CHAT_MESSAGE_TRACKED_KEY = "codequest_first_chat_message_tracked";
-const AUTH_SUCCESS_TRACKED_KEY = "auth_tracked";
 const PENDING_PLAN_KEY = "codequest_pending_plan";
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const JS_RUN_TIMEOUT_MS = 4000;
@@ -103,12 +108,17 @@ const TOPICS_BY_LEVEL = {
 
 const DEFAULT_WELCOME_MESSAGE = {
   role: "assistant",
-  content:
-    "Hi! I am your AI Tutor. Ask coding questions, paste code for feedback, or track your progress in dashboards.",
+  content: "Hi! I am your AI Tutor. Ask coding questions and track your progress.",
 };
 
 function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+function getAnalyticsUserKey(user) {
+  if (user?.id != null) return `user:${user.id}`;
+  if (user?.email) return `email:${normalizeEmail(user.email)}`;
+  return "guest";
 }
 
 function isSubscriptionActive(status) {
@@ -578,7 +588,7 @@ export default function App() {
       if (!res.ok) throw new Error(data?.error || rawText || `Auth failed (${res.status})`);
       if (!data?.token || !data?.user) throw new Error("Invalid auth response from server");
 
-      trackAuthSuccess();
+      trackAuthSuccess(authMode, data.user);
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(LAST_EMAIL_KEY, data.user?.email || normalizedEmail);
       setUser(data.user);
@@ -597,7 +607,7 @@ export default function App() {
         setCheckoutMessage("");
         goToPath("/");
         window.setTimeout(() => {
-          handleStartSubscription(pendingPlan);
+          handleStartSubscription(pendingPlan).catch((err) => console.error("Subscription error:", err));
         }, 0);
         return;
       }
@@ -681,6 +691,7 @@ export default function App() {
   async function handleSignOut() {
     localStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(CHECKOUT_NOTICE_KEY);
+    resetAnalyticsUser();
     setUser(null);
     setMessages([DEFAULT_WELCOME_MESSAGE]);
     setCheckoutNotice("");
@@ -695,15 +706,10 @@ export default function App() {
   }
 
  function handleGetStarted() {
-
-  // 📊 Google Analytics event
-  if (typeof window.gtag === "function") {
-    window.gtag("event", "get_started_click", {
-      event_category: "engagement",
-      event_label: "Get Started Button",
-    });
-  }
-
+  trackAnalyticsEvent("get_started_click", {
+    event_category: "engagement",
+    event_label: "Get Started Button",
+  });
   setMobileStartUnlocked(true);
   authCardRef.current?.scrollIntoView({
     behavior: "smooth",
@@ -751,6 +757,11 @@ export default function App() {
 
   function handleGuestPlanChoice(plan) {
     const normalizedPlan = plan === "premium" ? "premium" : plan === "pro" ? "pro" : "free";
+    trackAnalyticsEvent("subscribe_clicked", {
+      plan: normalizedPlan,
+      location: currentPath === "/pricing" ? "pricing_page" : "landing_page",
+      user_state: user ? "authenticated" : "guest",
+    });
     rememberPendingPlan(normalizedPlan);
     setAuthMode("signup");
 
@@ -766,41 +777,46 @@ export default function App() {
     goToPath("/auth");
   }
 
-  function trackAuthSuccess() {
-    try {
-      if (sessionStorage.getItem(AUTH_SUCCESS_TRACKED_KEY)) return;
-      if (typeof window.gtag === "function") {
-        window.gtag("event", "auth_success", {
-          event_category: "engagement",
-          event_label: "User Authenticated",
-        });
-      }
-      sessionStorage.setItem(AUTH_SUCCESS_TRACKED_KEY, "1");
-    } catch {
-      // ignore storage errors
-    }
+  function trackAuthSuccess(mode, authUser) {
+    const normalizedMode = mode === "signup" ? "signup" : "login";
+    const analyticsUserKey = getAnalyticsUserKey(authUser);
+    const payload = {
+      method: "email",
+      user_role: authUser?.role || "student",
+    };
+
+    trackAnalyticsEvent(normalizedMode === "signup" ? "sign_up" : "login", payload);
+    trackOncePerUser("auth_success", "auth_success", payload, analyticsUserKey);
   }
 
-  function trackFirstChatMessageSent() {
-  try {
-    if (sessionStorage.getItem(FIRST_CHAT_MESSAGE_TRACKED_KEY)) return;
-
-    if (typeof window.gtag === "function") {
-      window.gtag("event", "first_chat_message_sent", {
-        event_category: "engagement",
-        event_label: "AI Tutor Message",
-      });
-    }
-
-    sessionStorage.setItem(FIRST_CHAT_MESSAGE_TRACKED_KEY, "1");
-  } catch {
-    // ignore storage errors
+  function trackStartAiChat(messageText) {
+    trackOncePerSession("start_ai_chat", "start_ai_chat", {
+      topic,
+      mode,
+      level,
+      user_state: user ? "authenticated" : "guest",
+      has_text: Boolean(String(messageText || "").trim()),
+    });
   }
-}
+
+  function trackFirstChatMessageSent(messageText) {
+    const analyticsUserKey = getAnalyticsUserKey(user);
+    trackOncePerUser(
+      "first_message_sent",
+      "first_message_sent",
+      {
+        topic,
+        mode,
+        level,
+        user_state: user ? "authenticated" : "guest",
+        message_length_bucket: String(messageText || "").trim().length > 120 ? "long" : "short",
+      },
+      analyticsUserKey
+    );
+  }
 
   function trackEvent(name, params = {}) {
-    if (typeof window.gtag !== "function") return;
-    window.gtag("event", name, params);
+    trackAnalyticsEvent(name, params);
   }
 
   useEffect(() => {
@@ -847,6 +863,11 @@ export default function App() {
     setBillingActionLoading(true);
     setBillingError("");
     try {
+      trackAnalyticsEvent("begin_checkout", {
+        currency: "GBP",
+        plan: targetPlan,
+        user_state: user ? "authenticated" : "guest",
+      });
       const { res, data, rawText } = await fetchJson("/api/billing/create-checkout-session", {
         method: "POST",
         body: JSON.stringify({ plan: targetPlan }),
@@ -883,11 +904,13 @@ export default function App() {
       goToPath("/");
       return;
     }
-    trackFirstChatMessageSent();
+    trackStartAiChat(text);
+    trackFirstChatMessageSent(text);
     trackEvent("question_asked_to_ai", {
       topic,
       mode,
       level,
+      user_state: user ? "authenticated" : "guest",
     });
 
     setMessages((m) => [...m, { role: "user", content: text }, { role: "assistant", content: "" }]);
@@ -995,7 +1018,7 @@ export default function App() {
             idx = buffer.indexOf("\n\n");
 
             const dataLine = block.split("\n").find((line) => line.startsWith("data: "));
-            if (!dataLine) continue;
+            if (!dataLine || dataLine.length <= 6) continue;
 
             let payload = null;
             try {
@@ -1140,8 +1163,12 @@ error_text = stderr_capture.getvalue() + runtime_error
 (output_text, error_text)
       `);
 
-      const result = execution?.toJs ? execution.toJs() : execution;
-      execution?.destroy?.();
+      let result;
+      try {
+        result = execution?.toJs ? execution.toJs() : execution;
+      } finally {
+        execution?.destroy?.();
+      }
 
       const outputText = String(result?.[0] || "");
       const errorText = String(result?.[1] || "");
@@ -1213,7 +1240,7 @@ error_text = stderr_capture.getvalue() + runtime_error
     try {
       const { res, data, rawText } = await fetchJson("/api/student/quiz-attempts", {
         method: "POST",
-        body: JSON.stringify({ topic: quizTopic, score: Number(quizScore), maxScore: Number(quizMaxScore) }),
+        body: JSON.stringify({ topic: quizTopic, score: Number(quizScore) || 0, maxScore: Number(quizMaxScore) || 0 }),
       });
       if (!res.ok) throw new Error(data?.error || rawText || "Failed to save quiz score");
       if (data?.attempt) {
@@ -1336,6 +1363,18 @@ error_text = stderr_capture.getvalue() + runtime_error
   }, [fetchJson, getToken]);
 
   useEffect(() => {
+    if (!user) {
+      resetAnalyticsUser();
+      return;
+    }
+    setAnalyticsUser({
+      id: user.id,
+      role: user.role,
+      plan: billingPlan,
+    });
+  }, [billingPlan, user]);
+
+  useEffect(() => {
     if (!user) return;
     // Keep login fast: load only essentials up front.
     fetchBillingStatus();
@@ -1410,6 +1449,27 @@ error_text = stderr_capture.getvalue() + runtime_error
   }, [messages, loading]);
 
   useEffect(() => {
+    const root = document.documentElement;
+
+    const syncViewportHeight = () => {
+      const nextHeight = window.visualViewport?.height || window.innerHeight;
+      root.style.setProperty("--app-height", `${Math.round(nextHeight)}px`);
+    };
+
+    syncViewportHeight();
+
+    window.addEventListener("resize", syncViewportHeight);
+    window.visualViewport?.addEventListener("resize", syncViewportHeight);
+    window.visualViewport?.addEventListener("scroll", syncViewportHeight);
+
+    return () => {
+      window.removeEventListener("resize", syncViewportHeight);
+      window.visualViewport?.removeEventListener("resize", syncViewportHeight);
+      window.visualViewport?.removeEventListener("scroll", syncViewportHeight);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!levelTopics.includes(topic)) {
       setTopic(levelTopics[0]);
     }
@@ -1437,6 +1497,12 @@ error_text = stderr_capture.getvalue() + runtime_error
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [topMenuOpen]);
+
+  const handleTopMenuToggle = useCallback((event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setTopMenuOpen((prev) => !prev);
+  }, []);
 
   useEffect(() => () => stopJavaScriptRunner(), [stopJavaScriptRunner]);
 
@@ -1509,6 +1575,7 @@ error_text = stderr_capture.getvalue() + runtime_error
             onChange={(e) => handleCodeInputChange(e.target.value)}
             spellCheck="false"
             placeholder={codeLanguage === "python" ? "Write Python code..." : "Write JavaScript code..."}
+            aria-label="Code editor"
             rows={11}
             disabled={!user && guestTrialExpired}
           />
@@ -1561,11 +1628,11 @@ error_text = stderr_capture.getvalue() + runtime_error
             <p>{codeEvalResult.summary}</p>
             <p><strong>Improvements:</strong></p>
             <ul>
-              {codeEvalResult.improvements?.map((item) => <li key={item}>{item}</li>)}
+              {codeEvalResult.improvements?.map((item, i) => <li key={i}>{item}</li>)}
             </ul>
             <p><strong>Tips:</strong></p>
             <ul>
-              {codeEvalResult.tips?.map((item) => <li key={item}>{item}</li>)}
+              {codeEvalResult.tips?.map((item, i) => <li key={i}>{item}</li>)}
             </ul>
           </div>
         )}
@@ -1742,6 +1809,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                 <input
                   type="email"
                   placeholder="Email"
+                  aria-label="Email address"
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
@@ -1752,6 +1820,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                 <input
                   type="password"
                   placeholder="Password (min 6 chars)"
+                  aria-label="Password"
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
@@ -1762,6 +1831,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                 />
                 {authMode === "signup" && (
                   <select
+                    aria-label="Account type"
                     value={signupRole}
                     onChange={(e) => {
                       setSignupRole(e.target.value);
@@ -1799,7 +1869,7 @@ error_text = stderr_capture.getvalue() + runtime_error
                 className={`topMenuToggle ${topMenuOpen ? "open" : ""}`}
                 aria-expanded={topMenuOpen}
                 aria-label="Open guest menu"
-                onClick={() => setTopMenuOpen((prev) => !prev)}
+                onPointerDown={handleTopMenuToggle}
               >
                 <span />
                 <span />
@@ -1904,7 +1974,7 @@ error_text = stderr_capture.getvalue() + runtime_error
               className={`topMenuToggle ${topMenuOpen ? "open" : ""}`}
               aria-expanded={topMenuOpen}
               aria-label="Open guest menu"
-              onClick={() => setTopMenuOpen((prev) => !prev)}
+              onPointerDown={handleTopMenuToggle}
             >
               <span />
               <span />
@@ -2011,7 +2081,10 @@ error_text = stderr_capture.getvalue() + runtime_error
                 )}
 
                 {messages.map((m, i) => (
-                  <div key={i} className={`msg ${m.role}`}>
+                  <div
+                    key={`${m.role}-${i}-${m.content.slice(0, 16)}`}
+                    className={`msg ${m.role} ${isFreshSession && i === 0 ? "introMessage" : ""}`}
+                  >
                     <div className="bubble"><ReactMarkdown>{m.content}</ReactMarkdown></div>
                   </div>
                 ))}
@@ -2134,7 +2207,7 @@ error_text = stderr_capture.getvalue() + runtime_error
               className={`topMenuToggle ${topMenuOpen ? "open" : ""}`}
               aria-expanded={topMenuOpen}
               aria-label="Open account and settings menu"
-              onClick={() => setTopMenuOpen((prev) => !prev)}
+              onPointerDown={handleTopMenuToggle}
             >
               <span />
               <span />
@@ -2145,7 +2218,7 @@ error_text = stderr_capture.getvalue() + runtime_error
               <div className="topMenuPanel">
                 <div className="badges">
                   <span className="badge">{isPremiumPlan ? "Premium" : isPaidPlan ? "Pro" : "Free"}</span>
-                  <span className="badge">Role: {user.role || "student"}</span>
+                  <span className="badge">Role: {user?.role || "student"}</span>
                   {isPaidPlan ? (
                     <span className="badge planBadgeInline">Plan active • Renews {renewalLabel}</span>
                   ) : (
@@ -2261,7 +2334,7 @@ error_text = stderr_capture.getvalue() + runtime_error
             className={`topMenuToggle ${topMenuOpen ? "open" : ""}`}
             aria-expanded={topMenuOpen}
             aria-label="Open account and settings menu"
-            onClick={() => setTopMenuOpen((prev) => !prev)}
+            onPointerDown={handleTopMenuToggle}
           >
             <span />
             <span />
@@ -2519,8 +2592,8 @@ error_text = stderr_capture.getvalue() + runtime_error
             <article className="dashboardCard">
               <h3>Track lessons</h3>
               <form className="inlineForm" onSubmit={handleCreateLesson}>
-                <input value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} placeholder="Lesson title" />
-                <input value={lessonTopic} onChange={(e) => setLessonTopic(e.target.value)} placeholder="Topic" />
+                <input value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} placeholder="Lesson title" aria-label="Lesson title" />
+                <input value={lessonTopic} onChange={(e) => setLessonTopic(e.target.value)} placeholder="Topic" aria-label="Lesson topic" />
                 <button className="modeBtn" type="submit" disabled={lessonSaving}>{lessonSaving ? "Saving..." : "Add lesson"}</button>
               </form>
               <div className="simpleList">
@@ -2541,9 +2614,9 @@ error_text = stderr_capture.getvalue() + runtime_error
             <article className="dashboardCard">
               <h3>Log quiz score</h3>
               <form className="inlineForm" onSubmit={handleSaveQuizAttempt}>
-                <input value={quizTopic} onChange={(e) => setQuizTopic(e.target.value)} placeholder="Topic" />
-                <input value={quizScore} onChange={(e) => setQuizScore(e.target.value)} placeholder="Score" type="number" />
-                <input value={quizMaxScore} onChange={(e) => setQuizMaxScore(e.target.value)} placeholder="Max" type="number" />
+                <input value={quizTopic} onChange={(e) => setQuizTopic(e.target.value)} placeholder="Topic" aria-label="Quiz topic" />
+                <input value={quizScore} onChange={(e) => setQuizScore(e.target.value)} placeholder="Score" type="number" aria-label="Quiz score" />
+                <input value={quizMaxScore} onChange={(e) => setQuizMaxScore(e.target.value)} placeholder="Max" type="number" aria-label="Max score" />
                 <button className="modeBtn" type="submit" disabled={quizSaving}>{quizSaving ? "Saving..." : "Save score"}</button>
               </form>
             </article>
@@ -2598,9 +2671,9 @@ error_text = stderr_capture.getvalue() + runtime_error
             <article className="dashboardCard">
               <h3>Generate coding quiz</h3>
               <form className="inlineForm" onSubmit={handleGenerateTeacherQuiz}>
-                <input value={teacherQuizTitle} onChange={(e) => setTeacherQuizTitle(e.target.value)} placeholder="Quiz title (optional)" />
-                <input value={teacherTopic} onChange={(e) => setTeacherTopic(e.target.value)} placeholder="Topic" />
-                <select value={teacherLevel} onChange={(e) => setTeacherLevel(e.target.value)}>
+                <input value={teacherQuizTitle} onChange={(e) => setTeacherQuizTitle(e.target.value)} placeholder="Quiz title (optional)" aria-label="Quiz title" />
+                <input value={teacherTopic} onChange={(e) => setTeacherTopic(e.target.value)} placeholder="Topic" aria-label="Quiz topic" />
+                <select value={teacherLevel} onChange={(e) => setTeacherLevel(e.target.value)} aria-label="Curriculum level">
                   <option>KS3</option>
                   <option>GCSE</option>
                   <option>A-Level</option>
@@ -2620,9 +2693,9 @@ error_text = stderr_capture.getvalue() + runtime_error
             <article className="dashboardCard">
               <h3>Assign task</h3>
               <form className="inlineForm" onSubmit={handleAssignTask}>
-                <input value={assignEmail} onChange={(e) => setAssignEmail(e.target.value)} placeholder="Student email" required />
-                <input value={assignTitle} onChange={(e) => setAssignTitle(e.target.value)} placeholder="Task title" required />
-                <input value={assignTopic} onChange={(e) => setAssignTopic(e.target.value)} placeholder="Topic" />
+                <input type="email" value={assignEmail} onChange={(e) => setAssignEmail(e.target.value)} placeholder="Student email" aria-label="Student email" required />
+                <input value={assignTitle} onChange={(e) => setAssignTitle(e.target.value)} placeholder="Task title" aria-label="Task title" required />
+                <input value={assignTopic} onChange={(e) => setAssignTopic(e.target.value)} placeholder="Topic" aria-label="Task topic" />
                 <input type="date" value={assignDueDate} onChange={(e) => setAssignDueDate(e.target.value)} />
                 <textarea value={assignDescription} onChange={(e) => setAssignDescription(e.target.value)} placeholder="Task details" rows={3} />
                 <button type="submit" className="modeBtn" disabled={assignLoading}>{assignLoading ? "Assigning..." : "Assign"}</button>
@@ -2680,7 +2753,10 @@ error_text = stderr_capture.getvalue() + runtime_error
                   )}
 
                   {messages.map((m, i) => (
-                    <div key={i} className={`msg ${m.role}`}>
+                    <div
+                      key={`${m.role}-${i}-${m.content.slice(0, 16)}`}
+                      className={`msg ${m.role} ${isFreshSession && i === 0 ? "introMessage" : ""}`}
+                    >
                       <div className="bubble"><ReactMarkdown>{m.content}</ReactMarkdown></div>
                     </div>
                   ))}
@@ -2699,7 +2775,27 @@ error_text = stderr_capture.getvalue() + runtime_error
 
               <div className={`chatDock ${isMobileViewport ? "mobile" : ""}`}>
                 <form className="composer" onSubmit={sendMessage}>
-                  <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a CS question..." />
+                  <div className="composerInputShell">
+                    <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a CS question..." />
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="sendBtn iconSendBtn composerSendBtn"
+                      aria-label={loading ? "Sending" : "Send question"}
+                      title={loading ? "Sending" : "Send question"}
+                    >
+                      {loading ? (
+                        "..."
+                      ) : (
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path
+                            d="M3 20L21 12L3 4V10L15 12L3 14V20Z"
+                            fill="currentColor"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                   <button
                     type="button"
                     className="modeBtn clearComposerBtn"
@@ -2708,7 +2804,6 @@ error_text = stderr_capture.getvalue() + runtime_error
                   >
                     Clear chat
                   </button>
-                  <button type="submit" disabled={loading} className="sendBtn">{loading ? "Sending..." : "Send"}</button>
                 </form>
 
               </div>
